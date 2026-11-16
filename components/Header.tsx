@@ -8,7 +8,7 @@ function WeatherIcon({ kind }: { kind: Weather["icon"] }) {
   return <svg {...p}><path d="M7 15a4 4 0 1 1 .9-7.9A5 5 0 0 1 17.6 9 3.5 3.5 0 0 1 17 16H7z" /><path d="M9 19l-1 2M13 19l-1 2M17 19l-1 2" /></svg>;
 }
 
-export default function Header({ now, weather }: { now: Date; weather: Weather }) {
+export default function Header({ now, weather, notice }: { now: Date; weather: Weather; notice?: string | null }) {
   return (
     <header className="header">
       <div className="header-left">
@@ -16,6 +16,7 @@ export default function Header({ now, weather }: { now: Date; weather: Weather }
         <span className="clock">{fmtClock(now)}</span>
       </div>
       <div className="header-right">
+        {notice && <a className="notice" href="/settings">{notice}</a>}
         <div className="weather" aria-label="Weather">
           <WeatherIcon kind={weather.icon} />
           <span className="temp">{weather.temp}°</span>
