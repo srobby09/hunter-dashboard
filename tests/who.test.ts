@@ -26,7 +26,13 @@ const cases: [input: string, who: PersonId[], title: string][] = [
   ["Kai — Soccer", ["kai"], "Soccer"],
   ["Pre-K pickup", ["family"], "Pre-K pickup"],
   ["Kai-Soccer", ["family"], "Kai-Soccer"], // hyphen with no space before it is not a separator
-  ["D: Swim", ["family"], "D: Swim"], // a single initial is not accepted
+  ["D: Swim", ["darcy"], "Swim"], // single initials are accepted
+  ["K - Soccer", ["kai"], "Soccer"],
+  ["Ni: Gym", ["niko"], "Gym"],
+  ["No: Art class", ["nora"], "Art class"],
+  ["G: Hockey", ["dad"], "Hockey"],
+  ["S: Client call", ["mom"], "Client call"],
+  ["X: Swim", ["family"], "X: Swim"],
   ["N: Swim", ["family"], "N: Swim"], // bare N is ambiguous
   ["Darcy:", ["family"], "Darcy:"],
   ["Brunch at Grandma's: yum", ["family"], "Brunch at Grandma's: yum"],

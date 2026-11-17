@@ -1,7 +1,7 @@
 import { dayDiff, fmtRange, longLabel } from "@/lib/dates";
 import { PEOPLE, eventBg } from "@/lib/people";
 import type { CalEvent } from "@/lib/types";
-import { Dots, Nav, ViewToggle, type View } from "./Common";
+import { Dots, Nav, ViewToggle, isFamily, type View } from "./Common";
 
 /** All-day events share the top row; overlapping timed events sit side by side. */
 export function layoutRows(evs: CalEvent[]): CalEvent[][] {
@@ -39,7 +39,7 @@ export default function DayPanel({ view, onView, onAdd, anchor, today, events, o
           <div className="day-row" key={i}>
             {row.map((e) => (
               <div key={e.id} className="dev" style={{ background: eventBg(e.who) }}>
-                <span className="dd"><Dots who={e.who} size={22} /></span>
+                {!isFamily(e.who) && <span className="dd"><Dots who={e.who} size={22} /></span>}
                 <div className="tx">
                   <span className="tt">{e.title}</span>
                   <span className="ts">{fmtRange(e.start, e.end, e.allDay)} · {e.who.map((w) => PEOPLE[w].name).join(" & ")}</span>

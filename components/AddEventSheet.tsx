@@ -4,7 +4,7 @@ import { addDays, dayKey, fmtRange } from "@/lib/dates";
 import { PEOPLE, SELECTABLE, eventBg, type PersonId } from "@/lib/people";
 import { buildTitle } from "@/lib/who";
 import type { CalEvent, Repeat } from "@/lib/types";
-import { Dots } from "./Common";
+import { Dots, isFamily } from "./Common";
 
 const REPEATS: [Repeat, string][] = [["none", "Never"], ["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"], ["yearly", "Yearly"]];
 
@@ -94,7 +94,7 @@ export default function AddEventSheet({ today, initialDate, onClose, onSave }: {
         <div className="preview">
           <span style={{ fontSize: 13, fontWeight: 700, color: "#5C2E33" }}>Preview</span>
           <div className="card2" style={{ background: eventBg(whoFinal) }}>
-            <span style={{ display: "flex", gap: 3, flex: "none" }}><Dots who={whoFinal} size={22} /></span>
+            {!isFamily(whoFinal) && <span style={{ display: "flex", gap: 3, flex: "none" }}><Dots who={whoFinal} size={22} /></span>}
             <div style={{ minWidth: 0 }}>
               <div className="pt">{title.trim() || "New event"}</div>
               <div className="pl">{line}</div>

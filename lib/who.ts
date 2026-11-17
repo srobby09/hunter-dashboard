@@ -6,13 +6,13 @@ import { PEOPLE, SELECTABLE, type PersonId } from "./people";
  * A hyphen inside a word is not a separator ("Light-up parade" is a Family event).
  */
 
-// Full names (and Mom/Dad). Valid for one person or several.
+// Full names (and Mom/Dad).
 const FULL: Record<string, PersonId> = {
   sarah: "mom", mom: "mom",
   gord: "dad", dad: "dad",
   darcy: "darcy", kai: "kai", niko: "niko", nora: "nora",
 };
-// Initials. Only valid when 2+ people are listed. A bare "N" is ambiguous, so it is not here.
+// Initials, for one person or several. A bare "N" is ambiguous (Niko or Nora), so it is not here.
 const INITIALS: Record<string, PersonId> = { s: "mom", g: "dad", d: "darcy", k: "kai", ni: "niko", no: "nora" };
 
 const PREFIX = /^\s*([A-Za-z+&,\s]{1,40}?)\s*(?::|\s[-–—])\s*(.+)$/;
@@ -34,8 +34,8 @@ export function parseWho(rawTitle: string): { title: string; who: PersonId[] } {
 
   const owners: PersonId[] = [];
   for (const p of parts) {
-    const person = FULL[p] ?? (parts.length > 1 ? INITIALS[p] : undefined);
-    if (!person) return family; // unknown name, bare "N", or a single initial: not a prefix
+    const person = FULL[p] ?? INITIALS[p];
+    if (!person) return family; // unknown name or bare "N": not a prefix
     owners.push(person);
   }
   return { title: display, who: uniq(owners) };

@@ -1,6 +1,10 @@
 import { PEOPLE, type PersonId } from "@/lib/people";
 
+/** Family events (no owners) show no letter circle at all. */
+export const isFamily = (who: PersonId[]) => who.every((w) => w === "family");
+
 export function Dots({ who, size = 16 }: { who: PersonId[]; size?: 16 | 18 | 22 }) {
+  if (isFamily(who)) return null;
   return (
     <>
       {who.map((id, i) => {
