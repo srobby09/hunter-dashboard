@@ -26,10 +26,10 @@ function Check({ done, text, due, onToggle }: { done: boolean; text: string; due
   );
 }
 
-export default function Aside({ reminders, reminderError, onToggleReminder, onAddReminder, meals, groceries, onToggleGrocery, onAddGrocery, birthdays }: {
+export default function Aside({ reminders, reminderError, onToggleReminder, onAddReminder, meals, mealsError, groceries, groceryError, onToggleGrocery, onAddGrocery, birthdays }: {
   reminders: Reminder[]; reminderError?: string | null; onToggleReminder: (id: string) => void; onAddReminder: (t: string) => void;
-  meals: Meal[];
-  groceries: GroceryItem[]; onToggleGrocery: (id: string) => void; onAddGrocery: (t: string) => void;
+  meals: Meal[]; mealsError?: string | null;
+  groceries: GroceryItem[]; groceryError?: string | null; onToggleGrocery: (id: string) => void; onAddGrocery: (t: string) => void;
   birthdays: Birthday[];
 }) {
   const open = reminders.filter((r) => !r.done).length;
@@ -47,10 +47,11 @@ export default function Aside({ reminders, reminderError, onToggleReminder, onAd
       </section>
 
       <section className="card meals" aria-label="Meals">
-        <div className="row-head"><h2>Meals</h2><span className="pill olive">from Pickle</span></div>
+        <div className="row-head"><h2>Meals</h2>{mealsError ? <span className="pill" style={{ color: "#A9500F", background: "#F6DFCB" }}>Pickle offline</span> : <span className="pill olive">from Pickle</span>}</div>
+        {meals.length === 0 && mealsError && <p style={{ fontSize: 14, color: "#7A4A4E" }}>{mealsError === "pickle_not_configured" ? "Not connected to Pickle yet." : "Can't reach Pickle right now."}</p>}
         {meals.map((m) => (
           <div key={m.day} className={`meal${m.isToday ? " today" : ""}`}>
-            <span className="d">{m.day}</span><span className="m">{m.meal}</span>
+            <span className="d">{m.day}</span><span className="m" style={m.empty ? { color: "#9A7A7C" } : undefined}>{m.meal}</span>
           </div>
         ))}
       </section>
@@ -58,8 +59,11 @@ export default function Aside({ reminders, reminderError, onToggleReminder, onAd
         <section className="card reminders" aria-label="To get">
           <div className="row-head"><h2>To get</h2><span className="pill">{left} items</span></div>
           <div className="todo-list">
+            {groceries.length === 0 && !groceryError && <p style={{ fontSize: 14, color: "#7A4A4E", padding: "6px 0" }}>Nothing on the list.</p>}
+            {groceries.length === 0 && groceryError && groceryError !== "save" && <p style={{ fontSize: 14, color: "#7A4A4E", padding: "6px 0" }}>{groceryError === "pickle_not_configured" ? "Not connected to Pickle yet." : "Can't reach Pickle right now."}</p>}
             {groceries.map((g) => <Check key={g.id} done={g.done} text={g.text} onToggle={() => onToggleGrocery(g.id)} />)}
           </div>
+          {groceryError === "save" && <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: "#A9500F" }}>Couldn't save that. Please try again.</p>}
           <AddBox id="new-grocery" label="Add to the list" placeholder="Add…" onAdd={onAddGrocery} />
         </section>
         <section className="card tile" aria-label="Upcoming birthdays" style={{ padding: 16, gap: 8 }}>

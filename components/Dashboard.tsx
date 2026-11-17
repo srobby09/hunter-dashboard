@@ -1,12 +1,13 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { addDays, dayDiff, sameDay, startOfDay } from "@/lib/dates";
+import { addDays, dayDiff, dayKey, sameDay, startOfDay, startOfWeek } from "@/lib/dates";
 import { createGoogleReminders } from "@/lib/reminders";
 import { nextBirthdays } from "@/lib/reminderUtils";
 import { isMultiDay } from "@/lib/spans";
-import { sampleGroceries, sampleMeals } from "@/lib/sample";
+import { toMeals } from "@/lib/mealUtils";
 import type { NewEventInput } from "@/lib/eventPayload";
 import type { PersonId } from "@/lib/people";
+import type { MealDay } from "@/lib/pickle";
 import type { Birthday, CalEvent, GroceryItem, Reminder, Weather } from "@/lib/types";
 import AddEventSheet from "./AddEventSheet";
 import Aside from "./Aside";
@@ -31,7 +32,10 @@ export default function Dashboard() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [remError, setRemError] = useState<string | null>(null); // load problems (expired login...) or a failed save
   const [birthdayList, setBirthdayList] = useState<{ name: string; date: string }[]>([]);
-  const [groceries, setGroceries] = useState<GroceryItem[]>(sampleGroceries);
+  const [groceries, setGroceries] = useState<GroceryItem[]>([]);
+  const [groceryError, setGroceryError] = useState<string | null>(null); // a Pickle problem code, or "save"
+  const [mealDays, setMealDays] = useState<MealDay[]>([]);
+  const [mealsError, setMealsError] = useState<string | null>(null);
   const idle = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clock (client-only to avoid hydration mismatch)
@@ -50,6 +54,48 @@ export default function Dashboard() {
     const t = setInterval(load, 3 * 60 * 1000);
     return () => clearInterval(t);
   }, [provider]);
+
+  // Meals for the current week (Sunday start) from Pickle: now, every 10 minutes, and when the week changes
+  const weekKey = now ? dayKey(startOfWeek(now)) : null;
+  useEffect(() => {
+    if (!weekKey) return;
+    let live = true;
+    const load = () =>
+      fetch(`/api/meals?week=${weekKey}`, { cache: "no-store" })
+        .then(async (r) => {
+          const j = await r.json();
+          if (!live) return;
+          if (!r.ok) { setMealsError(j.error ?? "pickle_unreachable"); return; } // keep the last meals on screen
+          setMealDays(j.days);
+          setMealsError(null);
+        })
+        .catch(() => { if (live) setMealsError("pickle_unreachable"); });
+    load();
+    const t = setInterval(load, 10 * 60 * 1000);
+    return () => { live = false; clearInterval(t); };
+  }, [weekKey]);
+
+  // The To get list from Pickle: now and every 3 minutes
+  useEffect(() => {
+    const load = () =>
+      fetch("/api/groceries", { cache: "no-store" })
+        .then(async (r) => {
+          const j = await r.json();
+          if (!r.ok) { setGroceryError(j.error ?? "pickle_unreachable"); return; }
+          setGroceries(j.items.map((i: { id: string; name: string; done: boolean }) => ({ id: i.id, text: i.name, done: i.done })));
+          setGroceryError(null);
+        })
+        .catch(() => setGroceryError("pickle_unreachable"));
+    load();
+    const t = setInterval(load, 3 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (groceryError !== "save") return;
+    const t = setTimeout(() => setGroceryError(null), 6000);
+    return () => clearTimeout(t);
+  }, [groceryError]);
 
   // Upcoming birthdays from the Hunter Birthdays calendar: now and hourly
   useEffect(() => {
@@ -196,10 +242,25 @@ export default function Dashboard() {
                 .then((r) => setReminders((cur) => cur.map((x) => (x.id === tmp ? r : x))))
                 .catch(() => { setReminders((cur) => cur.filter((x) => x.id !== tmp)); setRemError("save"); });
             }}
-            meals={sampleMeals(today)}
+            meals={toMeals(mealDays, today)}
+            mealsError={mealsError}
             groceries={groceries}
-            onToggleGrocery={(id) => setGroceries(groceries.map((g) => (g.id === id ? { ...g, done: !g.done } : g)))}
-            onAddGrocery={(t) => setGroceries([...groceries, { id: `g${Date.now()}`, text: t, done: false }])}
+            groceryError={groceryError}
+            onToggleGrocery={(id) => {
+              const g = groceries.find((x) => x.id === id); if (!g || id.startsWith("tmp-")) return;
+              setGroceries(groceries.map((x) => (x.id === id ? { ...x, done: !x.done } : x)));
+              fetch(`/api/groceries/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ done: !g.done }) })
+                .then((r) => { if (!r.ok) throw new Error(); })
+                .catch(() => { setGroceries((cur) => cur.map((x) => (x.id === id ? { ...x, done: g.done } : x))); setGroceryError("save"); });
+            }}
+            onAddGrocery={(text) => {
+              const tmp = `tmp-${Date.now()}`;
+              setGroceries((cur) => [...cur, { id: tmp, text, done: false }]);
+              fetch("/api/groceries", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: text }) })
+                .then(async (r) => { if (!r.ok) throw new Error(); return r.json(); })
+                .then((j: { item: { id: string; name: string; done: boolean } }) => setGroceries((cur) => cur.map((x) => (x.id === tmp ? { id: j.item.id, text: j.item.name, done: j.item.done } : x))))
+                .catch(() => { setGroceries((cur) => cur.filter((x) => x.id !== tmp)); setGroceryError("save"); });
+            }}
             birthdays={birthdays}
           />
         )}

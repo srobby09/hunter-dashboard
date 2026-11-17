@@ -29,6 +29,7 @@ export interface Meal {
   day: string; // Mon..Fri
   meal: string;
   isToday: boolean;
+  empty?: boolean; // nothing planned
 }
 
 export interface Birthday {

@@ -17,3 +17,11 @@ export function failure(e: unknown): NextResponse {
   const error = KNOWN.includes(m) ? m : "google_error";
   return NextResponse.json({ error }, { status: error === "google_error" ? 502 : 401 });
 }
+
+import { PickleError } from "./pickle";
+
+/** Maps a Pickle problem to a status the dashboard can show. */
+export function pickleFailure(e: unknown): NextResponse {
+  const code = e instanceof PickleError ? e.code : "pickle_unreachable";
+  return NextResponse.json({ error: code }, { status: code === "pickle_not_configured" ? 503 : 502 });
+}
