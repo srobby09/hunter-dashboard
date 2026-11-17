@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   if (bad) return bad;
   const body = (await req.json().catch(() => null)) as { name?: unknown } | null;
   const name = typeof body?.name === "string" ? body.name.trim() : "";
-  if (!name || name.length > 200) return NextResponse.json({ error: "bad_name" }, { status: 400 });
+  if (!name || name.length > 120) return NextResponse.json({ error: "bad_name" }, { status: 400 });
   try {
     return NextResponse.json({ item: await addGrocery(name) });
   } catch (e) { return pickleFailure(e); }

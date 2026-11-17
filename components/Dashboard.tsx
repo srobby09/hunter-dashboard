@@ -258,7 +258,7 @@ export default function Dashboard() {
               setGroceries((cur) => [...cur, { id: tmp, text, done: false }]);
               fetch("/api/groceries", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: text }) })
                 .then(async (r) => { if (!r.ok) throw new Error(); return r.json(); })
-                .then((j: { item: { id: string; name: string; done: boolean } }) => setGroceries((cur) => cur.map((x) => (x.id === tmp ? { id: j.item.id, text: j.item.name, done: j.item.done } : x))))
+                .then((j: { item: { id: string; name: string; done: boolean } }) => setGroceries((cur) => (cur.some((x) => x.id === j.item.id) ? cur.filter((x) => x.id !== tmp) : cur.map((x) => (x.id === tmp ? { id: j.item.id, text: j.item.name, done: j.item.done } : x)))))
                 .catch(() => { setGroceries((cur) => cur.filter((x) => x.id !== tmp)); setGroceryError("save"); });
             }}
             birthdays={birthdays}
