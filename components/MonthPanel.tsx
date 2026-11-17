@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { DOW, addDays, fmtShort, longLabel, sameDay, startOfWeek } from "@/lib/dates";
+import { DOW, addDays, dayDiff, fmtShort, longLabel, sameDay, startOfWeek } from "@/lib/dates";
 import { eventBg } from "@/lib/people";
 import { isMultiDay, weekSegments } from "@/lib/spans";
 import type { CalEvent } from "@/lib/types";
@@ -16,21 +16,25 @@ export default function MonthPanel({ view, onView, onAdd, anchor, today, eventsF
   anchor: Date; today: Date; eventsFor: (d: Date) => CalEvent[]; multi: CalEvent[];
   onStep: (months: number) => void; onToday: () => void; onOpenDay: (d: Date) => void;
 }) {
+  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  // Only the weeks that hold days of this month: days of the next month are left blank.
+  const rows = Math.ceil((first.getDay() + monthEnd.getDate()) / 7);
+
   const gridRef = useRef<HTMLDivElement>(null);
   const [rowH, setRowH] = useState(97);
   useEffect(() => {
     const el = gridRef.current;
     if (!el) return;
-    const measure = () => setRowH(el.clientHeight / 6);
+    const measure = () => setRowH(el.clientHeight / rows);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [rows]);
   // How many event rows fit in a day cell (more on taller screens, never fewer than three).
   const capacity = Math.max(MIN_ITEMS, Math.floor((rowH - 31) / ITEM));
 
-  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
   const gridStart = startOfWeek(first);
   const heading = anchor.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const isThis = anchor.getMonth() === today.getMonth() && anchor.getFullYear() === today.getFullYear();
@@ -44,15 +48,20 @@ export default function MonthPanel({ view, onView, onAdd, anchor, today, eventsF
         <ViewToggle view={view} onView={onView} onAdd={onAdd} />
       </div>
       <div className="month-dow" aria-hidden="true">{DOW.map((d) => <div key={d}>{d}</div>)}</div>
-      <div className="month-grid" ref={gridRef}>
-        {Array.from({ length: 6 }, (_, w) => {
+      <div className="month-grid" ref={gridRef} style={{ gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
+        {Array.from({ length: rows }, (_, w) => {
           const ws = addDays(gridStart, w * 7);
-          const { segs } = weekSegments(multi, ws);
+          // Bars stop at the last day of the month (square end = it carries on).
+          const lastCol = Math.min(6, dayDiff(monthEnd, ws));
+          const segs = weekSegments(multi, ws).segs
+            .filter((s) => s.startCol <= lastCol)
+            .map((s) => (s.endCol > lastCol ? { ...s, endCol: lastCol, contRight: true } : s));
           const drawn = segs.filter((s) => s.lane < capacity);
           return (
             <div className="mrow" key={w}>
               {Array.from({ length: 7 }, (_, c) => {
                 const d = addDays(ws, c);
+                if (d > monthEnd) return <div key={c} className="mcell" aria-hidden="true" />;
                 const all = eventsFor(d);
                 const evs = all.filter((e) => !isMultiDay(e));
                 const here = segs.filter((s) => c >= s.startCol && c <= s.endCol);
