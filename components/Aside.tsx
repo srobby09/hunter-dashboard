@@ -52,9 +52,9 @@ export default function Aside({ reminders, onToggleReminder, onAddReminder, meal
         ))}
       </section>
 
-        <section className="card tile" aria-label="To get">
-          <div className="row-head" style={{ alignItems: "baseline" }}><h2>To get</h2><span className="pill" style={{ background: "none", padding: 0 }}>{left} items</span></div>
-          <div className="list">
+        <section className="card reminders" aria-label="To get">
+          <div className="row-head"><h2>To get</h2><span className="pill">{left} items</span></div>
+          <div className="todo-list">
             {groceries.map((g) => <Check key={g.id} done={g.done} text={g.text} onToggle={() => onToggleGrocery(g.id)} />)}
           </div>
           <AddBox id="new-grocery" label="Add to the list" placeholder="Add…" onAdd={onAddGrocery} />

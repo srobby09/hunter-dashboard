@@ -31,9 +31,9 @@ export default function MonthPanel({ view, onView, onAdd, anchor, today, eventsF
           return (
             <button key={i} type="button" className="mcell" onClick={() => onOpenDay(d)}
               aria-label={`Open ${longLabel(d)}${evs.length ? `, ${evs.length} ${evs.length === 1 ? "event" : "events"}` : ""}`}
-              style={{ background: inMonth ? "#FBFAF5" : "#F3F2EC", boxShadow: `inset 0 0 0 2px ${isToday ? "#410016" : inMonth ? "#E9E6DA" : "transparent"}` }}>
+              >
               <span className="top">
-                <span className="n" style={{ background: isToday ? "#410016" : "transparent", color: isToday ? "#FBFAF5" : inMonth ? "#410016" : "#7A4A4E" }}>{d.getDate()}</span>
+                <span className="n" style={{ background: isToday ? "#410016" : "transparent", color: isToday ? "#FBFAF5" : inMonth ? "#410016" : "#85695F" }}>{d.getDate()}</span>
                 {evs.length > 2 && <span className="more" style={{ paddingRight: 2 }}>+{evs.length - 2}</span>}
               </span>
               {evs.slice(0, 2).map((e) => (
