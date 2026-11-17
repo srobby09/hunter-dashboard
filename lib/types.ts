@@ -37,7 +37,16 @@ export interface Birthday {
   daysAway: number;
 }
 
+export interface ForecastDay {
+  date: string; // YYYY-MM-DD
+  icon: Weather["icon"];
+  label: string;
+  high: number;
+  low: number;
+}
+
 export interface Weather {
+  forecast?: ForecastDay[]; // the next three days
   icon: "sun" | "partly" | "cloud" | "fog" | "rain" | "snow" | "storm";
   temp: number;
   label: string;

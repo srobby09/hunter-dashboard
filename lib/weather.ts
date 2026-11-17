@@ -1,12 +1,12 @@
-import type { Weather } from "./types";
+import type { ForecastDay, Weather } from "./types";
 
 // Victoria / Oak Bay
 export const LAT = 48.4263;
 export const LON = -123.3135;
 export const WEATHER_URL =
   `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}` +
-  `&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min` +
-  `&timezone=America%2FVancouver&forecast_days=1`;
+  `&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min` +
+  `&timezone=America%2FVancouver&forecast_days=4`;
 
 type Icon = Weather["icon"];
 // WMO weather codes used by Open-Meteo
@@ -25,7 +25,7 @@ const CODES: Record<number, [Icon, string]> = {
 
 interface OpenMeteo {
   current?: { temperature_2m?: number; weather_code?: number };
-  daily?: { temperature_2m_max?: number[]; temperature_2m_min?: number[] };
+  daily?: { time?: string[]; weather_code?: number[]; temperature_2m_max?: number[]; temperature_2m_min?: number[] };
 }
 
 export function parseWeather(j: OpenMeteo): Weather | null {
@@ -33,6 +33,17 @@ export function parseWeather(j: OpenMeteo): Weather | null {
   const hi = j.daily?.temperature_2m_max?.[0];
   const lo = j.daily?.temperature_2m_min?.[0];
   if (typeof t !== "number" || typeof hi !== "number" || typeof lo !== "number") return null;
-  const [icon, label] = CODES[j.current?.weather_code ?? -1] ?? ["cloud", "Cloudy"];
-  return { icon, label, temp: Math.round(t), high: Math.round(hi), low: Math.round(lo) };
+  const look = (code: number | undefined): [Icon, string] => CODES[code ?? -1] ?? ["cloud", "Cloudy"];
+  const [icon, label] = look(j.current?.weather_code);
+
+  // The next three days (index 0 is today)
+  const d = j.daily;
+  const forecast: ForecastDay[] = [];
+  for (let i = 1; i <= 3; i++) {
+    const date = d?.time?.[i], high = d?.temperature_2m_max?.[i], low = d?.temperature_2m_min?.[i];
+    if (!date || typeof high !== "number" || typeof low !== "number") continue;
+    const [fi, fl] = look(d?.weather_code?.[i]);
+    forecast.push({ date, icon: fi, label: fl, high: Math.round(high), low: Math.round(low) });
+  }
+  return { icon, label, temp: Math.round(t), high: Math.round(hi), low: Math.round(lo), forecast };
 }

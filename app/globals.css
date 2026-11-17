@@ -35,6 +35,11 @@ h1, h2, p { margin: 0; }
 .weather .lbl b { font-size: 14px; font-weight: 600; }
 .weather .lbl span { font-size: 13px; color: #5C2E33; }
 .tools { display: flex; align-items: center; gap: 10px; }
+.forecast { list-style: none; margin: 0; padding: 0 0 0 16px; border-left: 1.5px solid #B3AC8E; display: flex; gap: 14px; }
+.forecast li { display: flex; align-items: center; gap: 6px; }
+.forecast .fd { font-size: 13px; font-weight: 600; color: #5C2E33; }
+.forecast .ft { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.forecast .fl { margin-left: 5px; font-weight: 500; color: #5C2E33; }
 .seg { display: flex; background: #EFEDE5; border-radius: 999px; padding: 4px; gap: 4px; }
 .seg button { border: 0; border-radius: 999px; min-width: 64px; height: 40px; padding: 0 14px; font-size: 15px; font-weight: 600; background: transparent; color: #6E3E43; }
 .seg button[aria-pressed="true"] { background: #FBFAF5; color: #410016; box-shadow: 0 1px 3px rgba(0,0,0,.14); }

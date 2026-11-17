@@ -52,9 +52,26 @@ test("bad input is refused", () => {
 
 test("weather is read from an Open-Meteo response", () => {
   const w = parseWeather({ current: { temperature_2m: 8.6, weather_code: 61 }, daily: { temperature_2m_max: [10.2], temperature_2m_min: [5.7] } });
-  assert.deepEqual(w, { icon: "rain", label: "Light rain", temp: 9, high: 10, low: 6 });
+  assert.deepEqual(w, { icon: "rain", label: "Light rain", temp: 9, high: 10, low: 6, forecast: [] });
   assert.equal(parseWeather({ current: { temperature_2m: 20, weather_code: 0 }, daily: { temperature_2m_max: [22], temperature_2m_min: [11] } })?.icon, "sun");
   assert.equal(parseWeather({ current: { temperature_2m: -3, weather_code: 73 }, daily: { temperature_2m_max: [0], temperature_2m_min: [-6] } })?.label, "Snow");
   assert.equal(parseWeather({ current: { temperature_2m: 5, weather_code: 999 }, daily: { temperature_2m_max: [6], temperature_2m_min: [1] } })?.label, "Cloudy");
   assert.equal(parseWeather({}), null);
+});
+
+test("the next three days are read from the daily forecast (today is skipped)", () => {
+  const w = parseWeather({
+    current: { temperature_2m: 8, weather_code: 3 },
+    daily: {
+      time: ["2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"],
+      weather_code: [3, 61, 0, 73],
+      temperature_2m_max: [9.4, 11.2, 7.6, 1.2],
+      temperature_2m_min: [5, 6.4, 2.5, -2.6],
+    },
+  });
+  assert.deepEqual(w?.forecast, [
+    { date: "2026-11-18", icon: "rain", label: "Light rain", high: 11, low: 6 },
+    { date: "2026-11-19", icon: "sun", label: "Clear", high: 8, low: 3 },
+    { date: "2026-11-20", icon: "snow", label: "Snow", high: 1, low: -3 },
+  ]);
 });
