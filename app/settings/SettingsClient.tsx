@@ -13,7 +13,7 @@ const ERRORS: Record<string, string> = {
   bad_state: "The sign-in expired or didn't match. Please try again.",
 };
 
-export default function SettingsClient() {
+export default function SettingsClient({ version, builtAt }: { version: string; builtAt: string }) {
   const [s, setS] = useState<Status | null>(null);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
@@ -60,6 +60,7 @@ export default function SettingsClient() {
             </>
           )}
         </section>
+        <p style={{ color: "#5C2E33", fontSize: 13 }}>Version {version} · deployed {new Date(builtAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</p>
         <a href="/" style={{ color: "#410016", fontWeight: 600 }}>← Back to the dashboard</a>
       </div>
     </main>
