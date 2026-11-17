@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { addDays, dayKey, fmtRange } from "@/lib/dates";
 import { PEOPLE, SELECTABLE, eventBg, type PersonId } from "@/lib/people";
+import { buildTitle } from "@/lib/who";
 import type { CalEvent, Repeat } from "@/lib/types";
 import { Dots } from "./Common";
 
@@ -99,6 +100,7 @@ export default function AddEventSheet({ today, initialDate, onClose, onSave }: {
               <div className="pl">{line}</div>
             </div>
           </div>
+          <div className="pl" style={{ fontSize: 13 }}>In Google Calendar this will be titled: <b>{buildTitle(title.trim() || "New event", who)}</b></div>
         </div>
       </form>
     </div>

@@ -29,7 +29,6 @@ async function findCalendarId(): Promise<string> {
 interface GEvent {
   id: string; status?: string; summary?: string;
   start?: { date?: string; dateTime?: string }; end?: { date?: string; dateTime?: string };
-  extendedProperties?: { private?: { who?: string } };
 }
 
 export async function listEvents(from: string, to: string): Promise<ApiEvent[]> {
@@ -45,7 +44,7 @@ export async function listEvents(from: string, to: string): Promise<ApiEvent[]> 
     for (const e of j.items ?? []) {
       if (e.status === "cancelled" || !e.start || !e.end) continue;
       const allDay = !!e.start.date;
-      const { title, who } = parseWho(e.summary ?? "(No title)", e.extendedProperties?.private?.who);
+      const { title, who } = parseWho(e.summary ?? "(No title)");
       out.push({ id: e.id, title, who, allDay, start: (e.start.date ?? e.start.dateTime)!, end: (e.end.date ?? e.end.dateTime)! });
     }
     pageToken = j.nextPageToken;
