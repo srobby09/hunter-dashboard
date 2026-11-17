@@ -1,12 +1,13 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { addDays, sameDay, startOfDay } from "@/lib/dates";
-import { createSampleReminders } from "@/lib/reminders";
+import { addDays, dayDiff, sameDay, startOfDay } from "@/lib/dates";
+import { createGoogleReminders } from "@/lib/reminders";
+import { nextBirthdays } from "@/lib/reminderUtils";
 import { isMultiDay } from "@/lib/spans";
-import { sampleBirthdays, sampleGroceries, sampleMeals } from "@/lib/sample";
+import { sampleGroceries, sampleMeals } from "@/lib/sample";
 import type { NewEventInput } from "@/lib/eventPayload";
 import type { PersonId } from "@/lib/people";
-import type { CalEvent, GroceryItem, Reminder, Weather } from "@/lib/types";
+import type { Birthday, CalEvent, GroceryItem, Reminder, Weather } from "@/lib/types";
 import AddEventSheet from "./AddEventSheet";
 import Aside from "./Aside";
 import DayPanel from "./DayPanel";
@@ -26,8 +27,10 @@ export default function Dashboard() {
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date | null>(null);
   const [sheet, setSheet] = useState(false);
-  const provider = useMemo(() => createSampleReminders(), []);
+  const provider = useMemo(() => createGoogleReminders(), []);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [remError, setRemError] = useState<string | null>(null); // load problems (expired login...) or a failed save
+  const [birthdayList, setBirthdayList] = useState<{ name: string; date: string }[]>([]);
   const [groceries, setGroceries] = useState<GroceryItem[]>(sampleGroceries);
   const idle = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -40,7 +43,35 @@ export default function Dashboard() {
     return () => clearInterval(t);
   }, []);
 
-  useEffect(() => { provider.listReminders().then(setReminders); }, [provider]);
+  // Reminders from the Hunter Reminders list in Google Tasks: now and every 3 minutes
+  useEffect(() => {
+    const load = () => provider.listReminders().then((r) => { setReminders(r); setRemError(null); }).catch((e: Error) => setRemError(e.message));
+    load();
+    const t = setInterval(load, 3 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [provider]);
+
+  // Upcoming birthdays from the Hunter Birthdays calendar: now and hourly
+  useEffect(() => {
+    const load = () => {
+      const from = startOfDay(new Date());
+      const to = addDays(from, 400);
+      fetch(`/api/birthdays?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => { if (j) setBirthdayList(j.birthdays); })
+        .catch(() => {});
+    };
+    load();
+    const t = setInterval(load, 60 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // A failed save shows briefly in the Reminders card
+  useEffect(() => {
+    if (remError !== "save") return;
+    const t = setTimeout(() => setRemError(null), 6000);
+    return () => clearTimeout(t);
+  }, [remError]);
 
   const today = useMemo(() => (now ? startOfDay(now) : null), [now?.getFullYear(), now?.getMonth(), now?.getDate()]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -122,9 +153,15 @@ export default function Dashboard() {
     return real.sort((a, b) => (a.allDay === b.allDay ? a.start.getTime() - b.start.getTime() : a.allDay ? -1 : 1));
   };
 
-  const notice = calError === "expired" ? "Google login expired · tap to reconnect"
-    : calError === "not_connected" || calError === "not_configured" ? "Calendar not connected · tap to set up"
+  const problem = calError ?? (remError && remError !== "save" ? remError : null);
+  const notice = problem === "expired" ? "Google login expired · tap to reconnect"
+    : problem === "not_connected" || problem === "not_configured" ? "Google not connected · tap to set up"
     : calError ? "Calendar can't be reached · showing last update" : null;
+
+  const birthdays: Birthday[] = nextBirthdays(birthdayList, 2).map((b) => {
+    const date = localDate(b.date);
+    return { name: b.name, date, daysAway: dayDiff(date, today) };
+  });
 
   const multi = events.filter(isMultiDay);
 
@@ -146,17 +183,24 @@ export default function Dashboard() {
         {!month && (
           <Aside
             reminders={reminders}
+            reminderError={remError === "save" ? "Couldn't save that. Please try again." : null}
             onToggleReminder={(id) => {
-              const r = reminders.find((x) => x.id === id); if (!r) return;
+              const r = reminders.find((x) => x.id === id); if (!r || id.startsWith("tmp-")) return;
               setReminders(reminders.map((x) => (x.id === id ? { ...x, done: !x.done } : x)));
-              provider.completeReminder(id, !r.done);
+              provider.completeReminder(id, !r.done).catch(() => { setReminders((cur) => cur.map((x) => (x.id === id ? { ...x, done: r.done } : x))); setRemError("save"); });
             }}
-            onAddReminder={(t) => provider.addReminder(t).then((r) => setReminders((cur) => [...cur, r]))}
+            onAddReminder={(text) => {
+              const tmp = `tmp-${Date.now()}`;
+              setReminders((cur) => [...cur, { id: tmp, text, done: false }]);
+              provider.addReminder(text)
+                .then((r) => setReminders((cur) => cur.map((x) => (x.id === tmp ? r : x))))
+                .catch(() => { setReminders((cur) => cur.filter((x) => x.id !== tmp)); setRemError("save"); });
+            }}
             meals={sampleMeals(today)}
             groceries={groceries}
             onToggleGrocery={(id) => setGroceries(groceries.map((g) => (g.id === id ? { ...g, done: !g.done } : g)))}
             onAddGrocery={(t) => setGroceries([...groceries, { id: `g${Date.now()}`, text: t, done: false }])}
-            birthdays={sampleBirthdays(today)}
+            birthdays={birthdays}
           />
         )}
       </div>

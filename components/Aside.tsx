@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { shortMD } from "@/lib/dates";
+import { daysLabel } from "@/lib/reminderUtils";
 import type { Birthday, GroceryItem, Meal, Reminder } from "@/lib/types";
 import { IconPlus } from "./Common";
 
@@ -25,8 +26,8 @@ function Check({ done, text, due, onToggle }: { done: boolean; text: string; due
   );
 }
 
-export default function Aside({ reminders, onToggleReminder, onAddReminder, meals, groceries, onToggleGrocery, onAddGrocery, birthdays }: {
-  reminders: Reminder[]; onToggleReminder: (id: string) => void; onAddReminder: (t: string) => void;
+export default function Aside({ reminders, reminderError, onToggleReminder, onAddReminder, meals, groceries, onToggleGrocery, onAddGrocery, birthdays }: {
+  reminders: Reminder[]; reminderError?: string | null; onToggleReminder: (id: string) => void; onAddReminder: (t: string) => void;
   meals: Meal[];
   groceries: GroceryItem[]; onToggleGrocery: (id: string) => void; onAddGrocery: (t: string) => void;
   birthdays: Birthday[];
@@ -38,8 +39,10 @@ export default function Aside({ reminders, onToggleReminder, onAddReminder, meal
       <section className="card reminders" aria-label="Reminders">
         <div className="row-head"><h2>Reminders</h2><span className="pill">{open} open</span></div>
         <div className="todo-list">
+          {reminders.length === 0 && <p style={{ fontSize: 14, color: "#7A4A4E", padding: "6px 0" }}>Nothing to do right now.</p>}
           {reminders.map((r) => <Check key={r.id} done={r.done} text={r.text} due={r.due} onToggle={() => onToggleReminder(r.id)} />)}
         </div>
+        {reminderError && <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: "#A9500F" }}>{reminderError}</p>}
         <AddBox id="new-reminder" label="Add reminder" placeholder="Add a reminder…" onAdd={onAddReminder} />
       </section>
 
@@ -61,10 +64,11 @@ export default function Aside({ reminders, onToggleReminder, onAddReminder, meal
         </section>
         <section className="card tile" aria-label="Upcoming birthdays" style={{ padding: 16, gap: 8 }}>
           <h2>Birthdays</h2>
+          {birthdays.length === 0 && <p style={{ fontSize: 14, color: "#7A4A4E" }}>No birthdays coming up.</p>}
           {birthdays.slice(0, 2).map((b) => (
-            <div className="bday" key={b.name}>
+            <div className="bday" key={b.name + b.date.getTime()}>
               <b>{b.name}</b>
-              <span>{b.date.toLocaleDateString("en-US", { weekday: "short" })}, {shortMD(b.date)}{b.daysAway <= 14 ? ` · ${b.daysAway} days` : ""}</span>
+              <span>{b.date.toLocaleDateString("en-US", { weekday: "short" })}, {shortMD(b.date)}{daysLabel(b.daysAway) ? ` · ${daysLabel(b.daysAway)}` : ""}</span>
             </div>
           ))}
         </section>

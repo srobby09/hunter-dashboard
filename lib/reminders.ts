@@ -1,7 +1,7 @@
 // Reminders sit behind this small interface so Google Tasks can later be swapped
 // for Apple Reminders (Capacitor) without touching the UI.
+import { dueLabel, pickReminders, type RawTask } from "./reminderUtils";
 import type { Reminder } from "./types";
-import { sampleReminders } from "./sample";
 
 export interface RemindersProvider {
   listReminders(): Promise<Reminder[]>;
@@ -9,20 +9,27 @@ export interface RemindersProvider {
   completeReminder(id: string, done: boolean): Promise<void>;
 }
 
-/** In-memory sample provider (step 1). Replaced by Google Tasks in step 5. */
-export function createSampleReminders(): RemindersProvider {
-  let items = [...sampleReminders];
+async function ok(r: Response): Promise<Response> {
+  if (r.ok) return r;
+  const { error } = (await r.json().catch(() => ({}))) as { error?: string };
+  throw new Error(error ?? "error");
+}
+
+/** Google Tasks, through the dashboard's own server routes. */
+export function createGoogleReminders(): RemindersProvider {
   return {
     async listReminders() {
-      return items;
+      const { tasks } = (await (await ok(await fetch("/api/reminders", { cache: "no-store" }))).json()) as { tasks: RawTask[] };
+      const today = new Date();
+      return pickReminders(tasks, today).map((t) => ({ id: t.id, text: t.text, due: dueLabel(t.dueDate, today), done: t.done }));
     },
     async addReminder(text) {
-      const r: Reminder = { id: `r${Date.now()}`, text, done: false };
-      items = [...items, r];
-      return r;
+      const r = await ok(await fetch("/api/reminders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) }));
+      const { task } = (await r.json()) as { task: RawTask };
+      return { id: task.id, text: task.title?.trim() || text, done: false };
     },
     async completeReminder(id, done) {
-      items = items.map((r) => (r.id === id ? { ...r, done } : r));
+      await ok(await fetch(`/api/reminders/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ done }) }));
     },
   };
 }
