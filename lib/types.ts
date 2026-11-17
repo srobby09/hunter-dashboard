@@ -38,7 +38,7 @@ export interface Birthday {
 }
 
 export interface Weather {
-  icon: "rain" | "sun" | "cloud";
+  icon: "sun" | "partly" | "cloud" | "fog" | "rain" | "snow" | "storm";
   temp: number;
   label: string;
   high: number;

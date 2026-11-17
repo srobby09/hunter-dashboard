@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { DOW, addDays, dayDiff, fmtShort, longLabel, sameDay, startOfWeek } from "@/lib/dates";
+import { DOW, addDays, fmtShort, longLabel, sameDay, startOfWeek } from "@/lib/dates";
 import { eventBg } from "@/lib/people";
 import { isMultiDay, weekSegments } from "@/lib/spans";
 import type { CalEvent } from "@/lib/types";
@@ -18,7 +18,7 @@ export default function MonthPanel({ view, onView, onAdd, anchor, today, eventsF
 }) {
   const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
   const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
-  // Only the weeks that hold days of this month: days of the next month are left blank.
+  // Only the weeks that hold days of this month. Days of the neighbouring months in those weeks are greyed.
   const rows = Math.ceil((first.getDay() + monthEnd.getDate()) / 7);
 
   const gridRef = useRef<HTMLDivElement>(null);
@@ -51,17 +51,12 @@ export default function MonthPanel({ view, onView, onAdd, anchor, today, eventsF
       <div className="month-grid" ref={gridRef} style={{ gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
         {Array.from({ length: rows }, (_, w) => {
           const ws = addDays(gridStart, w * 7);
-          // Bars stop at the last day of the month (square end = it carries on).
-          const lastCol = Math.min(6, dayDiff(monthEnd, ws));
-          const segs = weekSegments(multi, ws).segs
-            .filter((s) => s.startCol <= lastCol)
-            .map((s) => (s.endCol > lastCol ? { ...s, endCol: lastCol, contRight: true } : s));
+          const { segs } = weekSegments(multi, ws);
           const drawn = segs.filter((s) => s.lane < capacity);
           return (
             <div className="mrow" key={w}>
               {Array.from({ length: 7 }, (_, c) => {
                 const d = addDays(ws, c);
-                if (d > monthEnd) return <div key={c} className="mcell" aria-hidden="true" />;
                 const all = eventsFor(d);
                 const evs = all.filter((e) => !isMultiDay(e));
                 const here = segs.filter((s) => c >= s.startCol && c <= s.endCol);

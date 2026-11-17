@@ -52,3 +52,15 @@ export async function listEvents(from: string, to: string): Promise<ApiEvent[]> 
   }
   return out;
 }
+
+/** Creates an event in the family calendar and returns its id. */
+export async function insertEvent(body: object): Promise<string> {
+  const id = await findCalendarId();
+  const r = await googleFetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(id)}/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`insert ${r.status}`);
+  return ((await r.json()) as { id: string }).id;
+}

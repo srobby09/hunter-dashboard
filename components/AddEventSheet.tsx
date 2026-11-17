@@ -3,7 +3,8 @@ import { useState } from "react";
 import { addDays, dayKey, fmtRange } from "@/lib/dates";
 import { PEOPLE, SELECTABLE, eventBg, type PersonId } from "@/lib/people";
 import { buildTitle } from "@/lib/who";
-import type { CalEvent, Repeat } from "@/lib/types";
+import type { NewEventInput } from "@/lib/eventPayload";
+import type { Repeat } from "@/lib/types";
 import { Dots, isFamily } from "./Common";
 
 const REPEATS: [Repeat, string][] = [["none", "Never"], ["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"], ["yearly", "Yearly"]];
@@ -12,8 +13,10 @@ const parseDate = (s: string) => { const [y, m, d] = s.split("-").map(Number); r
 const withTime = (d: Date, t: string) => { const [h, m] = t.split(":").map(Number); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m); };
 
 export default function AddEventSheet({ today, initialDate, onClose, onSave }: {
-  today: Date; initialDate: Date; onClose: () => void; onSave: (e: CalEvent) => void;
+  today: Date; initialDate: Date; onClose: () => void; onSave: (input: NewEventInput) => Promise<string | null>;
 }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [who, setWho] = useState<PersonId[]>([]);
   const [date, setDate] = useState(dayKey(initialDate));
@@ -30,18 +33,24 @@ export default function AddEventSheet({ today, initialDate, onClose, onSave }: {
   const repWord = { none: "", daily: " · every day", weekly: ` · every ${d.toLocaleDateString("en-US", { weekday: "long" })}`, monthly: " · every month", yearly: " · every year" }[repeat];
   const line = `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${fmtRange(s, e, allDay)} · ${names}${repWord}`;
 
-  const submit = (ev: React.FormEvent) => {
+  const submit = async (ev: React.FormEvent) => {
     ev.preventDefault();
-    onSave({ id: `new-${Date.now()}`, title: title.trim() || "New event", who: whoFinal, start: s, end: e < s ? s : e, allDay, repeat });
+    if (saving) return;
+    if (!title.trim()) { setError("Please enter what the event is."); return; }
+    if (!allDay && end <= start) { setError("The end time needs to be after the start time."); return; }
+    setError(null);
+    setSaving(true);
+    const msg = await onSave({ title: title.trim(), who, date, allDay, start, end, repeat });
+    if (msg) { setError(msg); setSaving(false); } // on success the dashboard closes the sheet
   };
 
   return (
     <div className="scrim" onClick={(ev) => { if (ev.target === ev.currentTarget) onClose(); }}>
       <form className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" onSubmit={submit}>
         <div className="sheet-top">
-          <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
           <h1 id="sheet-title">New event</h1>
-          <button type="submit" className="btn-primary">Save</button>
+          <button type="submit" className="btn-primary" disabled={saving} aria-busy={saving}>{saving ? "Saving…" : "Save"}</button>
         </div>
 
         <div className="field">
@@ -100,7 +109,8 @@ export default function AddEventSheet({ today, initialDate, onClose, onSave }: {
               <div className="pl">{line}</div>
             </div>
           </div>
-          <div className="pl" style={{ fontSize: 13 }}>In Google Calendar this will be titled: <b>{buildTitle(title.trim() || "New event", who)}</b></div>
+          <div className="pl" style={{ fontSize: 13 }}>Saves to Google Calendar as: <b>{buildTitle(title.trim() || "New event", who)}</b></div>
+          {error && <p role="alert" style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#A9500F" }}>{error}</p>}
         </div>
       </form>
     </div>

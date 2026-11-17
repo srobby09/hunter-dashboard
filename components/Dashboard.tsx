@@ -3,9 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addDays, sameDay, startOfDay } from "@/lib/dates";
 import { createSampleReminders } from "@/lib/reminders";
 import { isMultiDay } from "@/lib/spans";
-import { sampleBirthdays, sampleGroceries, sampleMeals, sampleWeather } from "@/lib/sample";
+import { sampleBirthdays, sampleGroceries, sampleMeals } from "@/lib/sample";
+import type { NewEventInput } from "@/lib/eventPayload";
 import type { PersonId } from "@/lib/people";
-import type { CalEvent, GroceryItem, Reminder } from "@/lib/types";
+import type { CalEvent, GroceryItem, Reminder, Weather } from "@/lib/types";
 import AddEventSheet from "./AddEventSheet";
 import Aside from "./Aside";
 import DayPanel from "./DayPanel";
@@ -20,22 +21,10 @@ interface ApiEvent { id: string; title: string; who: PersonId[]; start: string; 
 const localDate = (s: string) => (s.length === 10 ? new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) : new Date(s));
 const fromApi = (e: ApiEvent): CalEvent => ({ ...e, start: localDate(e.start), end: localDate(e.end) });
 
-function matchesRepeat(e: CalEvent, d: Date): boolean {
-  const s = e.start;
-  if (startOfDay(d) <= startOfDay(s) || !e.repeat || e.repeat === "none") return false;
-  switch (e.repeat) {
-    case "daily": return true;
-    case "weekly": return d.getDay() === s.getDay();
-    case "monthly": return d.getDate() === s.getDate();
-    case "yearly": return d.getDate() === s.getDate() && d.getMonth() === s.getMonth();
-  }
-}
-
 export default function Dashboard() {
   const [now, setNow] = useState<Date | null>(null);
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date | null>(null);
-  const [added, setAdded] = useState<CalEvent[]>([]);
   const [sheet, setSheet] = useState(false);
   const provider = useMemo(() => createSampleReminders(), []);
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -72,6 +61,7 @@ export default function Dashboard() {
   // Real events from Hunter Family, re-read every few minutes and when the month changes
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [calError, setCalError] = useState<string | null>(null);
+  const reload = useRef<() => Promise<void>>(async () => {});
   const monthKey = anchor ? `${anchor.getFullYear()}-${anchor.getMonth()}` : null;
   useEffect(() => {
     if (!anchor) return;
@@ -87,12 +77,41 @@ export default function Dashboard() {
           setEvents(j.events.map(fromApi));
           setCalError(null);
         })
-        .catch(() => live && setCalError("offline"));
+        .catch(() => { if (live) setCalError("offline"); });
+    reload.current = load;
     load();
     const t = setInterval(load, 3 * 60 * 1000);
     return () => { live = false; clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthKey]);
+
+  // Weather from Open-Meteo (through our server), every 30 minutes; keeps the last reading if a refresh fails
+  const [weather, setWeather] = useState<Weather | null>(null);
+  useEffect(() => {
+    const load = () => fetch("/api/weather").then((r) => (r.ok ? r.json() : null)).then((w) => w && setWeather(w)).catch(() => {});
+    load();
+    const t = setInterval(load, 30 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Save a new event to Hunter Family; returns an error message, or null on success
+  const saveEvent = async (input: NewEventInput): Promise<string | null> => {
+    try {
+      const r = await fetch("/api/calendar/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+      if (!r.ok) {
+        const { error } = (await r.json().catch(() => ({}))) as { error?: string };
+        if (error === "expired" || error === "not_connected") return "Google login expired. Reconnect in Settings, then try again.";
+        if (error === "end_before_start") return "The end time needs to be after the start time.";
+        if (error === "calendar_error" || error === "calendar_not_found") return "Google Calendar didn't accept that. Please try again.";
+        return "Couldn't save the event. Please try again.";
+      }
+      await reload.current();
+      setSheet(false);
+      return null;
+    } catch {
+      return "Couldn't reach the calendar. Check the connection and try again.";
+    }
+  };
 
   if (!now || !today || !anchor) return <div className="app" />;
 
@@ -100,9 +119,7 @@ export default function Dashboard() {
     const dayStart = startOfDay(d).getTime();
     const dayEnd = dayStart + 86400000;
     const real = events.filter((e) => e.start.getTime() < dayEnd && e.end.getTime() > dayStart || (e.start.getTime() === e.end.getTime() && sameDay(e.start, d)));
-    const extra = added.filter((e) => sameDay(e.start, d) || matchesRepeat(e, d)).map((e) =>
-      sameDay(e.start, d) ? e : { ...e, id: `${e.id}-${d.toDateString()}`, start: new Date(d.getFullYear(), d.getMonth(), d.getDate(), e.start.getHours(), e.start.getMinutes()), end: new Date(d.getFullYear(), d.getMonth(), d.getDate(), e.end.getHours(), e.end.getMinutes()) });
-    return [...real, ...extra].sort((a, b) => (a.allDay === b.allDay ? a.start.getTime() - b.start.getTime() : a.allDay ? -1 : 1));
+    return real.sort((a, b) => (a.allDay === b.allDay ? a.start.getTime() - b.start.getTime() : a.allDay ? -1 : 1));
   };
 
   const notice = calError === "expired" ? "Google login expired · tap to reconnect"
@@ -119,7 +136,7 @@ export default function Dashboard() {
 
   return (
     <div className="app">
-      <Header now={now} weather={sampleWeather} notice={notice} />
+      <Header now={now} weather={weather} notice={notice} />
       <div className="body">
         <div className="main">
           {view === "week" && <WeekPanel view={view} onView={setView} onAdd={() => setSheet(true)} anchor={anchor} today={today} eventsFor={eventsFor} multi={multi} onStep={step} onToday={goToday} onOpenDay={openDay} />}
@@ -143,7 +160,7 @@ export default function Dashboard() {
           />
         )}
       </div>
-      {sheet && <AddEventSheet today={today} initialDate={view === "month" ? today : anchor} onClose={() => setSheet(false)} onSave={(e) => { setAdded((a) => [...a, e]); setSheet(false); }} />}
+      {sheet && <AddEventSheet today={today} initialDate={view === "month" ? today : anchor} onClose={() => setSheet(false)} onSave={saveEvent} />}
     </div>
   );
 }
