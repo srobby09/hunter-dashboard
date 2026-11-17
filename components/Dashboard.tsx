@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addDays, sameDay, startOfDay } from "@/lib/dates";
 import { createSampleReminders } from "@/lib/reminders";
+import { isMultiDay } from "@/lib/spans";
 import { sampleBirthdays, sampleGroceries, sampleMeals, sampleWeather } from "@/lib/sample";
 import type { PersonId } from "@/lib/people";
 import type { CalEvent, GroceryItem, Reminder } from "@/lib/types";
@@ -108,6 +109,8 @@ export default function Dashboard() {
     : calError === "not_connected" || calError === "not_configured" ? "Calendar not connected · tap to set up"
     : calError ? "Calendar can't be reached · showing last update" : null;
 
+  const multi = events.filter(isMultiDay);
+
   const step = (days: number) => setAnchor(addDays(anchor, days));
   const stepMonth = (n: number) => setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + n, 1));
   const goToday = () => setAnchor(today);
@@ -119,9 +122,9 @@ export default function Dashboard() {
       <Header now={now} weather={sampleWeather} notice={notice} />
       <div className="body">
         <div className="main">
-          {view === "week" && <WeekPanel view={view} onView={setView} onAdd={() => setSheet(true)} anchor={anchor} today={today} eventsFor={eventsFor} onStep={step} onToday={goToday} onOpenDay={openDay} />}
+          {view === "week" && <WeekPanel view={view} onView={setView} onAdd={() => setSheet(true)} anchor={anchor} today={today} eventsFor={eventsFor} multi={multi} onStep={step} onToday={goToday} onOpenDay={openDay} />}
           {view === "day" && <DayPanel view={view} onView={setView} onAdd={() => setSheet(true)} anchor={anchor} today={today} events={eventsFor(anchor)} onStep={step} onToday={goToday} />}
-          {month && <MonthPanel view={view} onView={setView} onAdd={() => setSheet(true)} anchor={anchor} today={today} eventsFor={eventsFor} onStep={stepMonth} onToday={goToday} onOpenDay={openDay} />}
+          {month && <MonthPanel view={view} onView={setView} onAdd={() => setSheet(true)} anchor={anchor} today={today} eventsFor={eventsFor} multi={multi} onStep={stepMonth} onToday={goToday} onOpenDay={openDay} />}
         </div>
         {!month && (
           <Aside
