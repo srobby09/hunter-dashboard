@@ -31,10 +31,10 @@ export function fmtRange(start: Date, end: Date, allDay: boolean): string {
     : `${hm(start)} ${ap(start)} – ${hm(end)} ${ap(end)}`;
 }
 
-/** Month-view short start: "4p", "4:30p", "All day" */
+/** Month-view short start: "4 PM", "4:30 PM", "8:30 AM", "All day" */
 export function fmtShort(start: Date, allDay: boolean): string {
   if (allDay) return "All day";
-  return hm(start) + (start.getHours() >= 12 ? "p" : "a");
+  return `${hm(start)} ${ap(start)}`;
 }
 
 export const fmtClock = (d: Date) =>
