@@ -16,12 +16,12 @@ export const longLabel = (d: Date) =>
   d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 export const shortMD = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-const hm = (d: Date) => {
+export const hm = (d: Date) => {
   const h = d.getHours() % 12 || 12;
   const m = d.getMinutes();
   return m ? `${h}:${String(m).padStart(2, "0")}` : `${h}`;
 };
-const ap = (d: Date) => (d.getHours() >= 12 ? "PM" : "AM");
+export const ap = (d: Date) => (d.getHours() >= 12 ? "PM" : "AM");
 
 /** "4 – 5 PM", "9 AM – 2 PM", "5:30 – 6:15 PM" */
 export function fmtRange(start: Date, end: Date, allDay: boolean): string {
