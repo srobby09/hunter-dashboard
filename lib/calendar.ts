@@ -1,4 +1,5 @@
 import { googleFetch } from "./google";
+import { findByName } from "./names";
 import { birthdayName, birthdayTitle } from "./reminderUtils";
 import { parseWho } from "./who";
 import type { PersonId } from "./people";
@@ -21,8 +22,8 @@ async function findCalendarId(name: string): Promise<string> {
   if (calendarIds[name]) return calendarIds[name];
   const r = await googleFetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxResults=250");
   if (!r.ok) throw new Error(`calendarList ${r.status}`);
-  const j = (await r.json()) as { items?: { id: string; summary: string }[] };
-  const c = j.items?.find((x) => x.summary === name);
+  const j = (await r.json()) as { items?: { id: string; summary: string; summaryOverride?: string }[] };
+  const c = findByName(j.items ?? [], name, (x) => [x.summary, x.summaryOverride]);
   if (!c) throw new Error("calendar_not_found");
   calendarIds[name] = c.id;
   return c.id;

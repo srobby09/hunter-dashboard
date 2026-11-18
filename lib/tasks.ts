@@ -1,4 +1,5 @@
 import { googleFetch } from "./google";
+import { findByName } from "./names";
 import type { RawTask } from "./reminderUtils";
 
 const LIST_NAME = process.env.REMINDERS_LIST_NAME ?? "Hunter Reminders";
@@ -10,7 +11,7 @@ async function findListId(): Promise<string> {
   const r = await googleFetch(`${BASE}/users/@me/lists?maxResults=100`);
   if (!r.ok) throw new Error(`taskLists ${r.status}`);
   const j = (await r.json()) as { items?: { id: string; title: string }[] };
-  const l = j.items?.find((x) => x.title === LIST_NAME);
+  const l = findByName(j.items ?? [], LIST_NAME, (x) => [x.title]);
   if (!l) throw new Error("list_not_found");
   listId = l.id;
   return l.id;
