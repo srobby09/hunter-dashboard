@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { startOfDay } from "@/lib/dates";
 import { openCount } from "@/lib/mobile";
+import { dataNotice } from "@/lib/notice";
 import { useDashboardData } from "@/lib/useDashboardData";
 import AddEventSheet from "../AddEventSheet";
 import CalendarTab from "./CalendarTab";
@@ -72,11 +73,7 @@ export default function MobileApp() {
   };
   const goToday = () => { setMonth(firstOf(today)); setSelected(today); };
 
-  const { calError, remError } = data;
-  const problem = calError ?? (remError && remError !== "save" ? remError : null);
-  const notice = problem === "expired" ? "Google login expired · tap to reconnect"
-    : problem === "not_connected" || problem === "not_configured" ? "Google not connected · tap to set up"
-    : calError ? "Calendar can't be reached · showing last update" : null;
+  const notice = dataNotice({ calError: data.calError, remError: data.remError, lastUpdated: data.lastUpdated, now });
 
   const badge = openCount([data.groceries, data.reminders]);
 

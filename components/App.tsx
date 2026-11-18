@@ -10,6 +10,9 @@ const PHONE = "(max-width: 599px), (max-height: 500px), (orientation: portrait) 
 export default function App() {
   const [phone, setPhone] = useState<boolean | null>(null);
   useEffect(() => {
+    if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
+  useEffect(() => {
     const mq = window.matchMedia(PHONE);
     const update = () => setPhone(mq.matches);
     update();

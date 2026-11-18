@@ -2,6 +2,7 @@
 // All the data the dashboard shows, loaded and kept fresh in one place so the wall and phone layouts share it.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, dayKey, startOfDay, startOfWeek } from "./dates";
+import { readCache, writeCache } from "./cache";
 import type { NewEventInput } from "./eventPayload";
 import type { PersonId } from "./people";
 import type { MealDay } from "./pickle";
@@ -26,6 +27,7 @@ export function useDashboardData(now: Date | null, anchor: Date | null) {
   const [mealsHome, setMealsHome] = useState<string | null>(null);
   const [birthdayList, setBirthdayList] = useState<{ name: string; date: string }[]>([]);
   const [weather, setWeather] = useState<Weather | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null); // when the calendar was last read successfully
 
   // Each loader registers here so everything can be refreshed at once (pull-to-refresh, coming back to the app)
   const loaders = useRef<Record<string, () => Promise<unknown>>>({});
@@ -38,6 +40,9 @@ export function useDashboardData(now: Date | null, anchor: Date | null) {
     const from = addDays(new Date(anchor.getFullYear(), anchor.getMonth(), 1), -8);
     const to = addDays(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1), 15);
     let live = true;
+    // Show the last good events straight away (useful after a reload with a bad connection)
+    const cached = readCache<{ monthKey: string; events: ApiEvent[] }>("events");
+    if (cached && cached.v.monthKey === monthKey) { setEvents(cached.v.events.map(fromApi)); setLastUpdated(new Date(cached.t)); }
     const load = () =>
       fetch(`/api/calendar/events?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`, { cache: "no-store" })
         .then(async (r) => {
@@ -46,6 +51,8 @@ export function useDashboardData(now: Date | null, anchor: Date | null) {
           if (!r.ok) { setCalError(j.error ?? "calendar_error"); return; } // keep showing the last good events
           setEvents(j.events.map(fromApi));
           setCalError(null);
+          setLastUpdated(new Date());
+          writeCache("events", { monthKey, events: j.events });
         })
         .catch(() => { if (live) setCalError("offline"); });
     loaders.current.events = load;
@@ -57,7 +64,9 @@ export function useDashboardData(now: Date | null, anchor: Date | null) {
 
   // Reminders from the Hunter Reminders list in Google Tasks: now and every 3 minutes
   useEffect(() => {
-    const load = () => provider.listReminders().then((r) => { setReminders(r); setRemError(null); }).catch((e: Error) => setRemError(e.message));
+    const cached = readCache<Reminder[]>("reminders");
+    if (cached) setReminders(cached.v);
+    const load = () => provider.listReminders().then((r) => { setReminders(r); setRemError(null); writeCache("reminders", r); }).catch((e: Error) => setRemError(e.message));
     loaders.current.reminders = load;
     load();
     const t = setInterval(load, 3 * 60 * 1000);
@@ -69,15 +78,19 @@ export function useDashboardData(now: Date | null, anchor: Date | null) {
   useEffect(() => {
     if (!weekKey) return;
     let live = true;
+    const cached = readCache<{ weekKey: string; days: MealDay[]; home: string | null }>("meals");
+    if (cached && cached.v.weekKey === weekKey) { setMealDays(cached.v.days); setMealsHome(cached.v.home); }
     const load = () =>
       fetch(`/api/meals?week=${weekKey}`, { cache: "no-store" })
         .then(async (r) => {
           const j = await r.json();
           if (!live) return;
           if (!r.ok) { setMealsError(j.error ?? "pickle_unreachable"); return; } // keep the last meals on screen
+          const home = typeof j.home === "string" ? j.home : null;
           setMealDays(j.days);
-          setMealsHome(typeof j.home === "string" ? j.home : null);
+          setMealsHome(home);
           setMealsError(null);
+          writeCache("meals", { weekKey, days: j.days, home });
         })
         .catch(() => { if (live) setMealsError("pickle_unreachable"); });
     loaders.current.meals = load;
@@ -88,13 +101,17 @@ export function useDashboardData(now: Date | null, anchor: Date | null) {
 
   // The To get list from Pickle: now and every 3 minutes
   useEffect(() => {
+    const cached = readCache<GroceryItem[]>("groceries");
+    if (cached) setGroceries(cached.v);
     const load = () =>
       fetch("/api/groceries", { cache: "no-store" })
         .then(async (r) => {
           const j = await r.json();
           if (!r.ok) { setGroceryError(j.error ?? "pickle_unreachable"); return; }
-          setGroceries(j.items.map((i: { id: string; name: string; done: boolean }) => ({ id: i.id, text: i.name, done: i.done })));
+          const items: GroceryItem[] = j.items.map((i: { id: string; name: string; done: boolean }) => ({ id: i.id, text: i.name, done: i.done }));
+          setGroceries(items);
           setGroceryError(null);
+          writeCache("groceries", items);
         })
         .catch(() => setGroceryError("pickle_unreachable"));
     loaders.current.groceries = load;
@@ -105,12 +122,14 @@ export function useDashboardData(now: Date | null, anchor: Date | null) {
 
   // Upcoming birthdays from the Hunter Birthdays calendar: now and hourly
   useEffect(() => {
+    const cached = readCache<{ name: string; date: string }[]>("birthdays");
+    if (cached) setBirthdayList(cached.v);
     const load = () => {
       const from = startOfDay(new Date());
       const to = addDays(from, BIRTHDAY_WINDOW_DAYS + 1);
       return fetch(`/api/birthdays?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((j) => { if (j) setBirthdayList(j.birthdays); })
+        .then((j) => { if (j) { setBirthdayList(j.birthdays); writeCache("birthdays", j.birthdays); } })
         .catch(() => {});
     };
     loaders.current.birthdays = load;
@@ -121,7 +140,9 @@ export function useDashboardData(now: Date | null, anchor: Date | null) {
 
   // Weather from Open-Meteo (through our server), every 30 minutes; keeps the last reading if a refresh fails
   useEffect(() => {
-    const load = () => fetch("/api/weather").then((r) => (r.ok ? r.json() : null)).then((w) => { if (w) setWeather(w); }).catch(() => {});
+    const cached = readCache<Weather>("weather");
+    if (cached) setWeather(cached.v);
+    const load = () => fetch("/api/weather").then((r) => (r.ok ? r.json() : null)).then((w) => { if (w) { setWeather(w); writeCache("weather", w); } }).catch(() => {});
     loaders.current.weather = load;
     load();
     const t = setInterval(load, 30 * 60 * 1000);
@@ -194,7 +215,7 @@ export function useDashboardData(now: Date | null, anchor: Date | null) {
     reminders, remError, toggleReminder, addReminder,
     groceries, groceryError, toggleGrocery, addGrocery,
     mealDays, mealsError, mealsHome,
-    birthdayList, weather, refreshAll,
+    birthdayList, weather, lastUpdated, refreshAll,
   };
 }
 export type DashboardData = ReturnType<typeof useDashboardData>;

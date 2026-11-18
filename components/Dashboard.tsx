@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addDays, dayDiff, startOfDay } from "@/lib/dates";
 import { eventsOnDay } from "@/lib/dayEvents";
+import { isAsleep, nightActive, WAKE_MS } from "@/lib/night";
+import { dataNotice } from "@/lib/notice";
 import { BIRTHDAY_WINDOW_DAYS, nextBirthdays } from "@/lib/reminderUtils";
 import { isMultiDay } from "@/lib/spans";
 import { toMeals } from "@/lib/mealUtils";
@@ -12,6 +14,7 @@ import Aside from "./Aside";
 import DayPanel from "./DayPanel";
 import { type View } from "./Common";
 import Header from "./Header";
+import NightScreen from "./NightScreen";
 import MonthPanel from "./MonthPanel";
 import WeekPanel from "./WeekPanel";
 
@@ -23,6 +26,9 @@ export default function Dashboard() {
   const [anchor, setAnchor] = useState<Date | null>(null);
   const [sheet, setSheet] = useState(false);
   const idle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [wakeUntil, setWakeUntil] = useState(0); // night mode: the screen is awake until this time
+  const [force] = useState(() => new URLSearchParams(window.location.search).get("night")); // ?night=on / off, for testing
+  const pageStart = useRef(Date.now());
   const data = useDashboardData(now, anchor);
 
   // Clock (client-only to avoid hydration mismatch)
@@ -35,6 +41,24 @@ export default function Dashboard() {
   }, []);
 
   const today = useMemo(() => (now ? startOfDay(now) : null), [now?.getFullYear(), now?.getMonth(), now?.getDate()]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Night mode: black from 11 PM to 6 AM, awake for a minute after each touch
+  const night = now ? nightActive(now, force) : false;
+  const asleep = now ? isAsleep(night, now.getTime(), wakeUntil) : false;
+  useEffect(() => {
+    if (!night) return;
+    const extend = () => setWakeUntil((w) => (Date.now() < w ? Date.now() + WAKE_MS : w)); // touches keep it awake; the black screen's own tap wakes it
+    window.addEventListener("pointerdown", extend, { passive: true });
+    return () => window.removeEventListener("pointerdown", extend);
+  }, [night]);
+  useEffect(() => {
+    if (!asleep) return;
+    setView("week"); setSheet(false); setAnchor(startOfDay(new Date())); // wake up to this week
+  }, [asleep]);
+  // Once a night, at 4 AM, reload so a long-running page picks up any new version
+  useEffect(() => {
+    if (asleep && now && now.getHours() === 4 && now.getMinutes() === 0 && Date.now() - pageStart.current > 6 * 3600 * 1000) window.location.reload();
+  }, [asleep, now]);
 
   // Return to Week, on today, after 2 minutes with no touches
   const resetIdle = useCallback(() => {
@@ -54,11 +78,8 @@ export default function Dashboard() {
 
   const eventsFor = (d: Date) => eventsOnDay(data.events, d);
 
-  const { calError, remError } = data;
-  const problem = calError ?? (remError && remError !== "save" ? remError : null);
-  const notice = problem === "expired" ? "Google login expired · tap to reconnect"
-    : problem === "not_connected" || problem === "not_configured" ? "Google not connected · tap to set up"
-    : calError ? "Calendar can't be reached · showing last update" : null;
+  const { remError } = data;
+  const notice = dataNotice({ calError: data.calError, remError, lastUpdated: data.lastUpdated, now });
 
   // Every birthday in the next 30 days, soonest first
   const birthdays: Birthday[] = nextBirthdays(data.birthdayList, Infinity)
@@ -102,6 +123,7 @@ export default function Dashboard() {
         )}
       </div>
       {sheet && <AddEventSheet today={today} initialDate={view === "month" ? today : anchor} onClose={() => setSheet(false)} onSave={async (input) => { const msg = await data.saveEvent(input); if (!msg) setSheet(false); return msg; }} />}
+      {asleep && <NightScreen onWake={() => setWakeUntil(Date.now() + WAKE_MS)} />}
     </div>
   );
 }
