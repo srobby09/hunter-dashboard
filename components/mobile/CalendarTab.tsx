@@ -1,6 +1,6 @@
 "use client";
 import { useRef } from "react";
-import { DOW, sameDay, longLabel } from "@/lib/dates";
+import { sameDay, longLabel } from "@/lib/dates";
 import { eventsOnDay } from "@/lib/dayEvents";
 import { agendaTime, barColors, joinNames, monthDays } from "@/lib/mobile";
 import type { DashboardData } from "@/lib/useDashboardData";
@@ -24,6 +24,7 @@ export default function CalendarTab({ data, today, month, selected, onSelect, on
 
   return (
     <div className="m-tab">
+      <PullScroll className="m-page" onRefresh={data.refreshAll}>
       {notice && <a className="m-notice" href="/settings">{notice}</a>}
       <header className="m-cal-head">
         <h1 aria-label={month.toLocaleDateString("en-US", { month: "long", year: "numeric" })}>
@@ -70,7 +71,7 @@ export default function CalendarTab({ data, today, month, selected, onSelect, on
         })}
       </div>
 
-      <PullScroll className="m-agenda" onRefresh={data.refreshAll}>
+      <section className="m-agenda">
         <h2>{selected.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</h2>
         {agenda.length === 0 && <p className="m-empty">Nothing on the calendar.</p>}
         <ul>
@@ -90,9 +91,8 @@ export default function CalendarTab({ data, today, month, selected, onSelect, on
             );
           })}
         </ul>
+      </section>
       </PullScroll>
     </div>
   );
 }
-
-export { DOW };
