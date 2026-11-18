@@ -43,7 +43,8 @@ test("countdown labels", () => {
   assert.equal(daysLabel(1), "Tomorrow");
   assert.equal(daysLabel(8), "8 days");
   assert.equal(daysLabel(14), "14 days");
-  assert.equal(daysLabel(15), "");
+  assert.equal(daysLabel(30), "30 days");
+  assert.equal(daysLabel(31), "");
 });
 
 test("next birthdays: soonest first, one per person", () => {

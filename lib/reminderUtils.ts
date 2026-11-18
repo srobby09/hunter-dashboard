@@ -42,10 +42,13 @@ export const birthdayName = (title: string) => title.trim().replace(/['’]s\s+(
 /** Title on the calendar: "Grandma" -> "Grandma's birthday"; titles that already say birthday stay as they are. */
 export const birthdayTitle = (title: string) => (/\b(birthday|bday)\b/i.test(title) ? title.trim() : `${title.trim()}’s birthday`);
 
+/** The Birthdays card lists everything in the next 30 days. */
+export const BIRTHDAY_WINDOW_DAYS = 30;
+
 export function daysLabel(daysAway: number): string {
   if (daysAway === 0) return "Today";
   if (daysAway === 1) return "Tomorrow";
-  return daysAway <= 14 ? `${daysAway} days` : "";
+  return daysAway <= BIRTHDAY_WINDOW_DAYS ? `${daysAway} days` : "";
 }
 
 /** The next occurrence per person, soonest first. */

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addDays, dayDiff, dayKey, sameDay, startOfDay, startOfWeek } from "@/lib/dates";
 import { createGoogleReminders } from "@/lib/reminders";
-import { nextBirthdays } from "@/lib/reminderUtils";
+import { BIRTHDAY_WINDOW_DAYS, nextBirthdays } from "@/lib/reminderUtils";
 import { isMultiDay } from "@/lib/spans";
 import { toMeals } from "@/lib/mealUtils";
 import type { NewEventInput } from "@/lib/eventPayload";
@@ -101,7 +101,7 @@ export default function Dashboard() {
   useEffect(() => {
     const load = () => {
       const from = startOfDay(new Date());
-      const to = addDays(from, 400);
+      const to = addDays(from, BIRTHDAY_WINDOW_DAYS + 1);
       fetch(`/api/birthdays?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => { if (j) setBirthdayList(j.birthdays); })
@@ -204,10 +204,13 @@ export default function Dashboard() {
     : problem === "not_connected" || problem === "not_configured" ? "Google not connected · tap to set up"
     : calError ? "Calendar can't be reached · showing last update" : null;
 
-  const birthdays: Birthday[] = nextBirthdays(birthdayList, 2).map((b) => {
-    const date = localDate(b.date);
-    return { name: b.name, date, daysAway: dayDiff(date, today) };
-  });
+  // Every birthday in the next 30 days, soonest first
+  const birthdays: Birthday[] = nextBirthdays(birthdayList, Infinity)
+    .map((b) => {
+      const date = localDate(b.date);
+      return { name: b.name, date, daysAway: dayDiff(date, today) };
+    })
+    .filter((b) => b.daysAway >= 0 && b.daysAway <= BIRTHDAY_WINDOW_DAYS);
 
   const multi = events.filter(isMultiDay);
 

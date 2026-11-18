@@ -68,13 +68,15 @@ export default function Aside({ reminders, reminderError, onToggleReminder, onAd
         </section>
         <section className="card tile" aria-label="Upcoming birthdays" style={{ padding: 16, gap: 8 }}>
           <h2>Birthdays</h2>
-          {birthdays.length === 0 && <p style={{ fontSize: 14, color: "#7A4A4E" }}>No birthdays coming up.</p>}
-          {birthdays.slice(0, 2).map((b) => (
-            <div className="bday" key={b.name + b.date.getTime()}>
-              <b>{b.name}</b>
-              <span>{b.date.toLocaleDateString("en-US", { weekday: "short" })}, {shortMD(b.date)}{daysLabel(b.daysAway) ? ` · ${daysLabel(b.daysAway)}` : ""}</span>
-            </div>
-          ))}
+          <div className="list bdays">
+            {birthdays.length === 0 && <p style={{ fontSize: 14, color: "#7A4A4E" }}>No birthdays in the next 30 days.</p>}
+            {birthdays.map((b) => (
+              <div className="bday" key={b.name + b.date.getTime()}>
+                <b>{b.name}</b>
+                <span>{b.date.toLocaleDateString("en-US", { weekday: "short" })}, {shortMD(b.date)}{daysLabel(b.daysAway) ? ` · ${daysLabel(b.daysAway)}` : ""}</span>
+              </div>
+            ))}
+          </div>
         </section>
     </div>
   );

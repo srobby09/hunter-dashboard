@@ -182,3 +182,6 @@ h1, h2, p { margin: 0; }
 
 /* Times, dates and counters line up and don't jiggle */
 .clock, .wev .tm, .dev .ts, .mev b, .mcell .n, .wk-head .num, .pill, .more, .chk .due, .meal .d, .weather .temp, .weather .lbl span, .bday span, .pl, .times, input[type="time"], input[type="date"] { font-variant-numeric: tabular-nums; }
+
+.bdays { gap: 10px; }
+.bdays .bday { margin-top: 0; flex: none; }
