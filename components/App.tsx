@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import Dashboard from "./Dashboard";
 import MobileApp from "./mobile/MobileApp";
 
-// Phone layout below 600px wide, or in portrait under 700px. The iPad / wall layout is used above that.
-const PHONE = "(max-width: 599px), (orientation: portrait) and (max-width: 699px)";
+// Phone layout when the screen is small in either direction: under 600px wide (portrait), under 500px tall
+// (a phone turned sideways), or portrait under 700px. The iPad / wall layout is used above that.
+const PHONE = "(max-width: 599px), (max-height: 500px), (orientation: portrait) and (max-width: 699px)";
 
 export default function App() {
   const [phone, setPhone] = useState<boolean | null>(null);
