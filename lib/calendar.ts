@@ -5,7 +5,7 @@ import { parseWho } from "./who";
 import type { PersonId } from "./people";
 
 const FAMILY_NAME = process.env.FAMILY_CALENDAR_NAME ?? "Hunter Family";
-const BIRTHDAYS_NAME = process.env.BIRTHDAYS_CALENDAR_NAME ?? "Hunter Birthdays";
+const BIRTHDAYS_NAME = process.env.BIRTHDAYS_CALENDAR_NAME ?? "Birthdays";
 
 export interface ApiEvent {
   id: string;
