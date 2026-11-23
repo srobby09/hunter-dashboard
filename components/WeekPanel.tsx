@@ -4,8 +4,8 @@ import { isMultiDay, weekSegments } from "@/lib/spans";
 import type { CalEvent } from "@/lib/types";
 import { Dots, Nav, ViewToggle, type View } from "./Common";
 
-export default function WeekPanel({ view, onView, onAdd, anchor, today, eventsFor, multi, onStep, onToday, onOpenDay }: {
-  view: View; onView: (v: View) => void; onAdd: () => void;
+export default function WeekPanel({ view, onView, onAdd, onEdit, anchor, today, eventsFor, multi, onStep, onToday, onOpenDay }: {
+  view: View; onView: (v: View) => void; onAdd: () => void; onEdit: (e: CalEvent) => void;
   anchor: Date; today: Date; eventsFor: (d: Date) => CalEvent[]; multi: CalEvent[];
   onStep: (n: number) => void; onToday: () => void; onOpenDay: (d: Date) => void;
 }) {
@@ -43,11 +43,12 @@ export default function WeekPanel({ view, onView, onAdd, anchor, today, eventsFo
         {lanes > 0 && (
           <div className="wk-span" style={{ gridTemplateRows: `repeat(${lanes}, 24px)` }}>
             {segs.map((s) => (
-              <div key={s.event.id} className={`bar${s.contLeft ? " cl" : ""}${s.contRight ? " cr" : ""}`}
-                style={{ gridColumn: `${s.startCol + 1} / ${s.endCol + 2}`, gridRow: s.lane + 1, background: eventBg(s.event.who) }}>
+              <button type="button" key={s.event.id} className={`bar${s.contLeft ? " cl" : ""}${s.contRight ? " cr" : ""}`} disabled={s.event.readOnly}
+                style={{ gridColumn: `${s.startCol + 1} / ${s.endCol + 2}`, gridRow: s.lane + 1, background: eventBg(s.event.who) }}
+                onClick={() => onEdit(s.event)}>
                 <Dots who={s.event.who} />
                 <span className="t">{s.event.title}</span>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -58,16 +59,17 @@ export default function WeekPanel({ view, onView, onAdd, anchor, today, eventsFo
             const all = eventsFor(d);
             const evs = all.filter((e) => !isMultiDay(e));
             return (
-              <button key={dow} type="button" className="wday" onClick={() => onOpenDay(d)}
-                aria-label={`${d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}, ${all.length} events`}>
+              <div key={dow} className="wday">
+                <button type="button" className="wday-open" onClick={() => onOpenDay(d)}
+                  aria-label={`Open ${d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}, ${all.length} events`} />
                 {evs.slice(0, 6).map((e) => (
-                  <div key={e.id} className="wev" style={{ background: eventBg(e.who) }}>
-                    <div className="r1"><Dots who={e.who} /><span className="t">{e.title}</span></div>
+                  <button type="button" key={e.id} className="wev" style={{ background: eventBg(e.who) }} disabled={e.readOnly} onClick={() => onEdit(e)}>
+                    <span className="r1"><Dots who={e.who} /><span className="t">{e.title}</span></span>
                     <span className="tm">{fmtRange(e.start, e.end, e.allDay)}</span>
-                  </div>
+                  </button>
                 ))}
                 {evs.length > 6 && <span className="more">+{evs.length - 6} more</span>}
-              </button>
+              </div>
             );
           })}
         </div>

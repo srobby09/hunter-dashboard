@@ -3,8 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { startOfDay } from "@/lib/dates";
 import { openCount } from "@/lib/mobile";
 import { dataNotice } from "@/lib/notice";
+import type { CalEvent } from "@/lib/types";
 import { useDashboardData } from "@/lib/useDashboardData";
-import AddEventSheet from "../AddEventSheet";
+import EventSheet from "../EventSheet";
 import CalendarTab from "./CalendarTab";
 import { CalendarIcon, ListIcon, MealIcon } from "./Icons";
 import ListsTab from "./ListsTab";
@@ -28,6 +29,7 @@ export default function MobileApp() {
   const [month, setMonth] = useState(() => firstOf(new Date()));
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
   const [sheet, setSheet] = useState(false);
+  const [editing, setEditing] = useState<CalEvent | null>(null);
   const [keyboard, setKeyboard] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const data = useDashboardData(now, month);
@@ -80,7 +82,7 @@ export default function MobileApp() {
   return (
     <div ref={root} className={`m-app${keyboard ? " kb" : ""}`}>
       <div className="m-body">
-        {tab === "calendar" && <CalendarTab data={data} today={today} month={month} selected={selected} onSelect={setSelected} onStep={go} onToday={goToday} onAdd={() => setSheet(true)} notice={notice} />}
+        {tab === "calendar" && <CalendarTab data={data} today={today} month={month} selected={selected} onSelect={setSelected} onStep={go} onToday={goToday} onAdd={() => setSheet(true)} onEdit={setEditing} notice={notice} />}
         {tab === "lists" && <ListsTab data={data} />}
         {tab === "meals" && <MealsTab data={data} today={today} />}
       </div>
@@ -92,9 +94,12 @@ export default function MobileApp() {
           </button>
         ))}
       </nav>
-      {sheet && (
-        <AddEventSheet today={today} initialDate={selected} onClose={() => setSheet(false)}
-          onSave={async (input) => { const msg = await data.saveEvent(input); if (!msg) setSheet(false); return msg; }} />
+      {(sheet || editing) && (
+        <EventSheet key={editing?.id ?? "new"} today={today} initialDate={selected} event={editing ?? undefined}
+          onClose={() => { setSheet(false); setEditing(null); }}
+          onCreate={async (input) => { const msg = await data.saveEvent(input); if (!msg) setSheet(false); return msg; }}
+          onUpdate={async (id, input) => { const msg = await data.updateEvent(id, input); if (!msg) setEditing(null); return msg; }}
+          onDelete={async (id, scope) => { const msg = await data.deleteEvent(id, scope); if (!msg) setEditing(null); return msg; }} />
       )}
     </div>
   );

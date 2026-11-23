@@ -8,8 +8,8 @@ import { BIRTHDAY_WINDOW_DAYS, nextBirthdays } from "@/lib/reminderUtils";
 import { isMultiDay } from "@/lib/spans";
 import { toMeals } from "@/lib/mealUtils";
 import { localDate, useDashboardData } from "@/lib/useDashboardData";
-import type { Birthday } from "@/lib/types";
-import AddEventSheet from "./AddEventSheet";
+import type { Birthday, CalEvent } from "@/lib/types";
+import EventSheet from "./EventSheet";
 import Aside from "./Aside";
 import DayPanel from "./DayPanel";
 import { type View } from "./Common";
@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date | null>(null);
   const [sheet, setSheet] = useState(false);
+  const [editing, setEditing] = useState<CalEvent | null>(null); // the event being changed
   const idle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [wakeUntil, setWakeUntil] = useState(0); // night mode: the screen is awake until this time
   const [force] = useState(() => new URLSearchParams(window.location.search).get("night")); // ?night=on / off, for testing
@@ -53,7 +54,7 @@ export default function Dashboard() {
   }, [night]);
   useEffect(() => {
     if (!asleep) return;
-    setView("week"); setSheet(false); setAnchor(startOfDay(new Date())); // wake up to this week
+    setView("week"); setSheet(false); setEditing(null); setAnchor(startOfDay(new Date())); // wake up to this week
   }, [asleep]);
   // Once a night, at 4 AM, reload so a long-running page picks up any new version
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function Dashboard() {
   const resetIdle = useCallback(() => {
     if (idle.current) clearTimeout(idle.current);
     idle.current = setTimeout(() => {
-      setView("week"); setSheet(false); setAnchor(startOfDay(new Date()));
+      setView("week"); setSheet(false); setEditing(null); setAnchor(startOfDay(new Date()));
     }, IDLE_MS);
   }, []);
   useEffect(() => {
@@ -102,8 +103,8 @@ export default function Dashboard() {
       <Header now={now} weather={data.weather} notice={notice} />
       <div className="body">
         <div className="main">
-          {view === "week" && <WeekPanel view={view} onView={setView} onAdd={() => setSheet(true)} anchor={anchor} today={today} eventsFor={eventsFor} multi={multi} onStep={step} onToday={goToday} onOpenDay={openDay} />}
-          {view === "day" && <DayPanel view={view} onView={setView} onAdd={() => setSheet(true)} anchor={anchor} today={today} events={eventsFor(anchor)} onStep={step} onToday={goToday} />}
+          {view === "week" && <WeekPanel view={view} onView={setView} onAdd={() => setSheet(true)} onEdit={setEditing} anchor={anchor} today={today} eventsFor={eventsFor} multi={multi} onStep={step} onToday={goToday} onOpenDay={openDay} />}
+          {view === "day" && <DayPanel view={view} onView={setView} onAdd={() => setSheet(true)} onEdit={setEditing} anchor={anchor} today={today} events={eventsFor(anchor)} onStep={step} onToday={goToday} />}
           {month && <MonthPanel view={view} onView={setView} onAdd={() => setSheet(true)} anchor={anchor} today={today} eventsFor={eventsFor} multi={multi} onStep={stepMonth} onToday={goToday} onOpenDay={openDay} />}
         </div>
         {!month && (
@@ -122,7 +123,13 @@ export default function Dashboard() {
           />
         )}
       </div>
-      {sheet && <AddEventSheet today={today} initialDate={view === "month" ? today : anchor} onClose={() => setSheet(false)} onSave={async (input) => { const msg = await data.saveEvent(input); if (!msg) setSheet(false); return msg; }} />}
+      {(sheet || editing) && (
+        <EventSheet key={editing?.id ?? "new"} today={today} initialDate={view === "month" ? today : anchor} event={editing ?? undefined}
+          onClose={() => { setSheet(false); setEditing(null); }}
+          onCreate={async (input) => { const msg = await data.saveEvent(input); if (!msg) setSheet(false); return msg; }}
+          onUpdate={async (id, input) => { const msg = await data.updateEvent(id, input); if (!msg) setEditing(null); return msg; }}
+          onDelete={async (id, scope) => { const msg = await data.deleteEvent(id, scope); if (!msg) setEditing(null); return msg; }} />
+      )}
       {asleep && <NightScreen onWake={() => setWakeUntil(Date.now() + WAKE_MS)} />}
     </div>
   );

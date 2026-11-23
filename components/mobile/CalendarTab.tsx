@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { sameDay, longLabel } from "@/lib/dates";
 import { eventsOnDay } from "@/lib/dayEvents";
 import { agendaTime, barColors, joinNames, monthDays } from "@/lib/mobile";
+import type { CalEvent } from "@/lib/types";
 import type { DashboardData } from "@/lib/useDashboardData";
 import { Dots, isFamily } from "../Common";
 import { ChevronL, ChevronR, PlusIcon, TodayIcon } from "./Icons";
@@ -13,9 +14,9 @@ const Bar = ({ who }: { who: Parameters<typeof barColors>[0] }) => (
   <i className="m-bar" aria-hidden="true">{barColors(who).map((c, i) => <b key={i} style={{ background: c }} />)}</i>
 );
 
-export default function CalendarTab({ data, today, month, selected, onSelect, onStep, onToday, onAdd, notice }: {
+export default function CalendarTab({ data, today, month, selected, onSelect, onStep, onToday, onAdd, onEdit, notice }: {
   data: DashboardData; today: Date; month: Date; selected: Date;
-  onSelect: (d: Date) => void; onStep: (n: number) => void; onToday: () => void; onAdd: () => void; notice: string | null;
+  onSelect: (d: Date) => void; onStep: (n: number) => void; onToday: () => void; onAdd: () => void; onEdit: (e: CalEvent) => void; notice: string | null;
 }) {
   const swipe = useRef<{ x: number; y: number } | null>(null);
   const days = monthDays(month);
@@ -78,7 +79,8 @@ export default function CalendarTab({ data, today, month, selected, onSelect, on
           {agenda.map((e) => {
             const t = agendaTime(e);
             return (
-              <li key={e.id} className="m-card">
+              <li key={e.id}>
+              <button type="button" className="m-card" disabled={e.readOnly} onClick={() => onEdit(e)}>
                 <div className="tm">
                   {t.allDay ? <span className="allday">All day</span> : (<><span className="s">{t.start}<small>{t.startAp}</small></span><span className="e">{t.end}</span></>)}
                 </div>
@@ -87,6 +89,7 @@ export default function CalendarTab({ data, today, month, selected, onSelect, on
                   <b>{e.title}</b>
                   <span className="m-who">{!isFamily(e.who) && <Dots who={e.who} size={18} />}{joinNames(e.who)}</span>
                 </div>
+              </button>
               </li>
             );
           })}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, dayKey, startOfDay, startOfWeek } from "./dates";
 import { readCache, writeCache } from "./cache";
+import type { EditInput, Scope } from "./eventEdit";
 import type { NewEventInput } from "./eventPayload";
 import type { PersonId } from "./people";
 import type { MealDay } from "./pickle";
@@ -10,7 +11,7 @@ import { createGoogleReminders } from "./reminders";
 import { BIRTHDAY_WINDOW_DAYS } from "./reminderUtils";
 import type { CalEvent, GroceryItem, Reminder, Weather } from "./types";
 
-interface ApiEvent { id: string; title: string; who: PersonId[]; start: string; end: string; allDay: boolean }
+interface ApiEvent { id: string; title: string; who: PersonId[]; start: string; end: string; allDay: boolean; recurringId?: string; readOnly?: boolean }
 export const localDate = (s: string) => (s.length === 10 ? new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) : new Date(s));
 const fromApi = (e: ApiEvent): CalEvent => ({ ...e, start: localDate(e.start), end: localDate(e.end) });
 
@@ -161,23 +162,32 @@ export function useDashboardData(now: Date | null, anchor: Date | null) {
     return () => clearTimeout(t);
   }, [groceryError]);
 
-  // Save a new event to Hunter Family; returns an error message, or null on success
-  const saveEvent = async (input: NewEventInput): Promise<string | null> => {
+  // Turns a failed event save into a sentence for the sheet
+  const eventError = async (r: Response): Promise<string> => {
+    const { error } = (await r.json().catch(() => ({}))) as { error?: string };
+    if (error === "expired" || error === "not_connected") return "Google login expired. Reconnect in Settings, then try again.";
+    if (error === "end_before_start") return "The end time needs to be after the start time.";
+    if (error === "event_not_found") return "That event is gone from the calendar. It may have been changed or deleted elsewhere.";
+    if (error === "calendar_error" || error === "calendar_not_found" || error === "google_error") return "Google Calendar didn't accept that. Please try again.";
+    return "Couldn't save the event. Please try again.";
+  };
+  const NO_CONNECTION = "Couldn't reach the calendar. Check the connection and try again.";
+  const send = async (url: string, method: string, body?: unknown): Promise<string | null> => {
     try {
-      const r = await fetch("/api/calendar/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
-      if (!r.ok) {
-        const { error } = (await r.json().catch(() => ({}))) as { error?: string };
-        if (error === "expired" || error === "not_connected") return "Google login expired. Reconnect in Settings, then try again.";
-        if (error === "end_before_start") return "The end time needs to be after the start time.";
-        if (error === "calendar_error" || error === "calendar_not_found") return "Google Calendar didn't accept that. Please try again.";
-        return "Couldn't save the event. Please try again.";
-      }
+      const r = await fetch(url, { method, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
+      if (!r.ok) return eventError(r);
       await loaders.current.events?.();
       return null;
     } catch {
-      return "Couldn't reach the calendar. Check the connection and try again.";
+      return NO_CONNECTION;
     }
   };
+
+  // Save a new event to Hunter Family; returns an error message, or null on success
+  const saveEvent = (input: NewEventInput) => send("/api/calendar/events", "POST", input);
+  // Change or delete an existing event (scope: just this one, or the whole repeating series)
+  const updateEvent = (id: string, input: EditInput) => send(`/api/calendar/events/${encodeURIComponent(id)}`, "PATCH", input);
+  const deleteEvent = (id: string, scope: Scope) => send(`/api/calendar/events/${encodeURIComponent(id)}?scope=${scope}`, "DELETE");
 
   const toggleReminder = (id: string) => {
     const r = reminders.find((x) => x.id === id);
@@ -211,7 +221,7 @@ export function useDashboardData(now: Date | null, anchor: Date | null) {
   };
 
   return {
-    events, calError, saveEvent,
+    events, calError, saveEvent, updateEvent, deleteEvent,
     reminders, remError, toggleReminder, addReminder,
     groceries, groceryError, toggleGrocery, addGrocery,
     mealDays, mealsError, mealsHome,

@@ -17,8 +17,8 @@ export function layoutRows(evs: CalEvent[]): CalEvent[][] {
   return rows;
 }
 
-export default function DayPanel({ view, onView, onAdd, anchor, today, events, onStep, onToday }: {
-  view: View; onView: (v: View) => void; onAdd: () => void;
+export default function DayPanel({ view, onView, onAdd, onEdit, anchor, today, events, onStep, onToday }: {
+  view: View; onView: (v: View) => void; onAdd: () => void; onEdit: (e: CalEvent) => void;
   anchor: Date; today: Date; events: CalEvent[]; onStep: (n: number) => void; onToday: () => void;
 }) {
   const diff = dayDiff(anchor, today);
@@ -38,13 +38,13 @@ export default function DayPanel({ view, onView, onAdd, anchor, today, events, o
         {rows.map((row, i) => (
           <div className="day-row" key={i}>
             {row.map((e) => (
-              <div key={e.id} className="dev" style={{ background: eventBg(e.who) }}>
+              <button type="button" key={e.id} className="dev" style={{ background: eventBg(e.who) }} disabled={e.readOnly} onClick={() => onEdit(e)}>
                 {!isFamily(e.who) && <span className="dd"><Dots who={e.who} size={22} /></span>}
                 <div className="tx">
                   <span className="tt">{e.title}</span>
                   <span className="ts">{fmtRange(e.start, e.end, e.allDay)} · {e.who.map((w) => PEOPLE[w].name).join(" & ")}</span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         ))}

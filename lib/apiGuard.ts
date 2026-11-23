@@ -11,11 +11,11 @@ export function sameOriginOnly(req: Request): NextResponse | null {
 
 export const notConfigured = () => (!googleConfigured() || !storeConfigured() ? NextResponse.json({ error: "not_configured" }, { status: 503 }) : null);
 
-const KNOWN = ["not_connected", "expired", "calendar_not_found", "list_not_found"];
+const KNOWN = ["not_connected", "expired", "calendar_not_found", "list_not_found", "event_not_found"];
 export function failure(e: unknown): NextResponse {
   const m = e instanceof Error ? e.message : "";
   const error = KNOWN.includes(m) ? m : "google_error";
-  return NextResponse.json({ error }, { status: error === "google_error" ? 502 : 401 });
+  return NextResponse.json({ error }, { status: error === "google_error" ? 502 : error === "event_not_found" ? 404 : 401 });
 }
 
 import { PickleError } from "./pickle";

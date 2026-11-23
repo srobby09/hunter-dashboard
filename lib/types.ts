@@ -10,6 +10,8 @@ export interface CalEvent {
   end: Date;
   allDay: boolean;
   repeat?: Repeat;
+  recurringId?: string; // set when this is one occurrence of a repeating event
+  readOnly?: boolean; // birthdays: edited in Google Calendar
 }
 
 export interface Reminder {
