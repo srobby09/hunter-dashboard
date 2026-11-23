@@ -15,7 +15,7 @@ const ERRORS: Record<string, string> = {
   bad_state: "The sign-in expired or didn't match. Please try again.",
 };
 
-export default function SettingsClient({ version, builtAt }: { version: string; builtAt: string }) {
+export default function SettingsClient({ version, builtAt, loginOn, loginProblem }: { version: string; builtAt: string; loginOn: boolean; loginProblem: string | null }) {
   const [s, setS] = useState<Status | null>(null);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [pk, setPk] = useState<PickleStatus | null>(null);
@@ -30,6 +30,12 @@ export default function SettingsClient({ version, builtAt }: { version: string; 
     load();
     fetch("/api/pickle/status", { cache: "no-store" }).then((r) => r.json()).then(setPk).catch(() => setPk({ status: "unreachable" }));
   }, [load]);
+
+  const signOut = async () => {
+    await fetch("/api/logout", { method: "POST" }).catch(() => {});
+    try { Object.keys(localStorage).filter((k) => k.startsWith("hunter")).forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ } // the saved copy of the calendar goes too
+    window.location.assign("/login");
+  };
 
   const missing = s && (!s.configured || !s.storeConfigured);
   return (
@@ -62,6 +68,20 @@ export default function SettingsClient({ version, builtAt }: { version: string; 
                 </div>
               )}
             </>
+          )}
+        </section>
+        <section className="card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }} aria-label="Sign-in">
+          <h2>Sign-in</h2>
+          {loginOn ? (
+            <>
+              <p style={{ fontWeight: 600, color: "#4A5040" }}>The family passcode is on. Anyone opening this site needs it.</p>
+              <div><button type="button" className="btn-ghost" style={{ border: "1.5px solid #D3CEB9" }} onClick={signOut}>Sign out of this device</button></div>
+            </>
+          ) : (
+            <p style={{ color: "#A9500F" }}>
+              {loginProblem ? `The passcode isn’t set up properly: ${loginProblem} ` : "Sign-in is off. "}
+              Until it’s on, only Vercel’s own login protects the vercel.app address, and a custom domain will refuse to open. To turn it on, add FAMILY_PASSCODE (at least 8 characters) and AUTH_SECRET (a long random value) in the project’s Vercel settings, then redeploy.
+            </p>
           )}
         </section>
         <section className="card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 8 }} aria-label="Pickle connection">

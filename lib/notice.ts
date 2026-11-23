@@ -7,6 +7,7 @@ export function dataNotice(o: { calError: string | null; remError: string | null
   const { calError, remError, lastUpdated, now } = o;
   const problem = calError ?? (remError && remError !== "save" ? remError : null);
   const when = lastUpdated ? fmtClock(lastUpdated) : null;
+  if (problem === "login_required") return "Signed out · tap to sign in";
   if (problem === "expired") return "Google login expired · tap to reconnect";
   if (problem === "not_connected" || problem === "not_configured") return "Google not connected · tap to set up";
   if (problem === "calendar_not_found") return "Can’t find the Hunter Family calendar · tap for Settings";

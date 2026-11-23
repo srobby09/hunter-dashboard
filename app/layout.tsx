@@ -19,6 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "Hunter Family Dashboard",
     applicationName: "Hunter Family",
+    robots: { index: false, follow: false },
     appleWebApp: { capable: true, title: "Hunter Family", statusBarStyle: phone ? "default" : "black-translucent" },
     icons: { icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }], apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }] },
   };

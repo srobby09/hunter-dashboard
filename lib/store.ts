@@ -20,3 +20,8 @@ async function cmd(args: (string | number)[]): Promise<unknown> {
 export const kvGet = async (key: string) => (await cmd(["GET", key])) as string | null;
 export const kvSet = async (key: string, value: string) => void (await cmd(["SET", key, value]));
 export const kvDel = async (key: string) => void (await cmd(["DEL", key]));
+/** Adds one to a counter that disappears after ttlSeconds (counted from the first add). */
+export async function kvIncr(key: string, ttlSeconds: number): Promise<void> {
+  const n = (await cmd(["INCR", key])) as number;
+  if (n === 1) await cmd(["EXPIRE", key, ttlSeconds]);
+}
